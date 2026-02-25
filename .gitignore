@@ -1,2 +1,5 @@
 # global env
 .env
+
+# primarily for prettier cache
+node_modules/

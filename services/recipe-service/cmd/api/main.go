@@ -6,10 +6,9 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
-	"github.com/willh-simpson/pantry-wizard/services/interaction-service/config"
-	"github.com/willh-simpson/pantry-wizard/services/interaction-service/domain/api"
-	"github.com/willh-simpson/pantry-wizard/services/interaction-service/domain/database"
+	"github.com/willh-simpson/pantry-wizard/services/recipe-service/config"
+	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/api"
+	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/database"
 )
 
 func main() {
@@ -40,13 +39,14 @@ func main() {
 	}
 	defer db.Close()
 
-	kafkaProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
-	handler := api.NewInteractionHandler(db, kafkaProducer)
+	handler := api.NewRecipeHandler(db)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
+	r.GET("/recipes", handler.ListRecipes)
+	r.POST("/recipes", handler.CreateRecipe)
 
-	log.Printf("interaction service starting on port %s...", cfg.Port)
+	log.Printf("identity service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
