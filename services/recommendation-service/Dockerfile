@@ -18,6 +18,6 @@ WORKDIR /root/
 COPY --from=builder /app/main .
 COPY --from=builder /app/migrations ./migrations
 
-EXPOSE 8082
+EXPOSE 8084
 
 CMD ["./main"]

@@ -38,6 +38,45 @@ services:
     networks:
       - pantry-network
 
+  recipe-service:
+    build:
+      context: ./services/recipe-service
+      dockerfile: Dockerfile
+    container_name: recipe-service
+    ports:
+      - "${RECIPE_SERVICE_PORT}:8083"
+    environment:
+      - RECIPE_DB_USER=${RECIPE_DB_USER}
+      - RECIPE_DB_PASSWORD=${RECIPE_DB_PASSWORD}
+      - RECIPE_DB_PORT=5432
+      - RECIPE_DB_HOST=recipe-db
+    depends_on:
+      recipe-db:
+        condition: service_healthy
+    networks:
+      - pantry-network
+
+  recommendation-service:
+    build:
+      context: ./services/recommendation-service
+      dockerfile: Dockerfile
+    container_name: recommendation-service
+    ports:
+      - "${RECOMMENDATION_SERVICE_PORT}:8084"
+    environment:
+      - RECOMMENDATION_DB_USER=${RECOMMENDATION_DB_USER}
+      - RECOMMENDATION_DB_PASSWORD=${RECOMMENDATION_DB_PASSWORD}
+      - RECOMMENDATION_DB_PORT=5432
+      - RECOMMENDATION_DB_HOST=recommendation-db
+      - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
+    depends_on:
+      recommendation-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - pantry-network
+
   identity-db:
     image: postgres:15-alpine
     container_name: identity-db
@@ -66,6 +105,11 @@ services:
       - "${RECIPE_DB_PORT}:5432"
     networks:
       - pantry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RECIPE_DB_USER} -d recipe_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   interaction-db:
     image: postgres:15-alpine
@@ -81,6 +125,27 @@ services:
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${INTERACTION_DB_USER} -d interaction_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  recommendation-db:
+    image: postgres:15-alpine
+    container_name: recommendation-db
+    environment:
+      POSTGRES_DB: recommendation_db
+      POSTGRES_USER: ${RECOMMENDATION_DB_USER}
+      POSTGRES_PASSWORD: ${RECOMMENDATION_DB_PASSWORD}
+    ports:
+      - "${RECOMMENDATION_DB_PORT}:5432"
+    networks:
+      - pantry-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${RECOMMENDATION_DB_USER} -d recommendation_db",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5

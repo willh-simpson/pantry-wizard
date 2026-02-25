@@ -11,6 +11,7 @@ type Message struct {
 
 type Producer interface {
 	Publish(ctx context.Context, msg Message) error
+	Ping(ctx context.Context) error
 	Close() error
 }
 

@@ -4,4 +4,6 @@ use (
 	./libs/go/common
 	./services/identity-service
 	./services/interaction-service
+	./services/recipe-service
+	./services/recommendation-service
 )
