@@ -50,5 +50,10 @@ func (h *RecommendationHandler) ProcessLike(ctx context.Context, msg kafka.Messa
 
 	log.Printf("incrementing popularity score for recipe: %s", event.RecipeID)
 
-	return database.UpdatePopularity(ctx, h.DB, event.RecipeID)
+	err := database.UpdatePopularity(ctx, h.DB, event.RecipeID)
+	if err != nil {
+		log.Printf("could not process like for recipe: %s", event.RecipeID)
+	}
+
+	return err
 }

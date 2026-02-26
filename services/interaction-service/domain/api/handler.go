@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -77,6 +78,8 @@ func (h *InteractionHandler) LikeRecipe(c *gin.Context) {
 
 	if err != nil {
 		fmt.Printf("kafka publish error: %v\n", err)
+	} else {
+		log.Println("published like to topic \"recipe-likes\"")
 	}
 
 	c.JSON(http.StatusCreated, gin.H{

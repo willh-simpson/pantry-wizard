@@ -58,10 +58,13 @@ func main() {
 	r.GET("/health", handler.HealthCheck)
 
 	log.Printf("recommendation service starting on port %s...", cfg.Port)
+
+	go func() {
+		log.Println("recommendation service listening for events...")
+		consumer.Consume(context.Background(), handler.ProcessLike)
+	}()
+
 	if err := r.Run(cfg.Port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
-
-	log.Println("recommendation service listening for events...")
-	consumer.Consume(context.Background(), handler.ProcessLike)
 }
