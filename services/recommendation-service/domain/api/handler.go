@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
@@ -41,18 +43,33 @@ func (h *RecommendationHandler) HealthCheck(c *gin.Context) {
 	})
 }
 
-func (h *RecommendationHandler) ProcessLike(ctx context.Context, msg kafka.Message) error {
-	var event model.LikeEvent
+func (h *RecommendationHandler) GetTopRecommendations(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+
+	recipes, err := database.GetTopRecipes(c.Request.Context(), h.DB, limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to fetch recommendations",
+		})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, recipes)
+}
+
+func (h *RecommendationHandler) ProcessInteraction(ctx context.Context, msg kafka.Message) error {
+	var event model.InteractionEvent
 
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		return err
 	}
 
-	log.Printf("incrementing popularity score for recipe: %s", event.RecipeID)
+	log.Printf("incrementing popularity score for recipe \"%s\" via %s", event.RecipeID, event.Action)
 
-	err := database.UpdatePopularity(ctx, h.DB, event.RecipeID)
+	err := database.UpdateScore(ctx, h.DB, event.RecipeID, string(event.Action))
 	if err != nil {
-		log.Printf("could not process like for recipe: %s", event.RecipeID)
+		log.Printf("could not process interaction for recipe \"%s\": %v", event.RecipeID, err)
 	}
 
 	return err

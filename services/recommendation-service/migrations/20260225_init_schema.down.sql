@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS recipe_popularity;
+DROP TABLE IF EXISTS recipe_scores;

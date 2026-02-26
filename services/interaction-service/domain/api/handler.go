@@ -42,8 +42,31 @@ func (h *InteractionHandler) HealthCheck(c *gin.Context) {
 	})
 }
 
-func (h *InteractionHandler) LikeRecipe(c *gin.Context) {
-	var req model.LikeRequest
+func (h *InteractionHandler) PublishInteraction(c *gin.Context, recipeID, userID, action string) {
+	event := model.InteractionEvent{
+		RecipeID:  recipeID,
+		UserID:    userID,
+		Timestamp: time.Now().Unix(),
+		Action:    model.InteractionType(action),
+	}
+	payload, _ := json.Marshal(event)
+
+	err := h.Producer.Publish(c.Request.Context(), kafka.Message{
+		Topic:      "recipe-interactions",
+		Key:        []byte(recipeID),
+		Value:      payload,
+		RetryCount: 0,
+	})
+
+	if err != nil {
+		fmt.Printf("kafka publish error: %v\n", err)
+	} else {
+		log.Printf("published %s to topic \"recipe-interactions\"", action)
+	}
+}
+
+func (h *InteractionHandler) Interact(c *gin.Context) {
+	var req model.InteractionRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -53,36 +76,17 @@ func (h *InteractionHandler) LikeRecipe(c *gin.Context) {
 		return
 	}
 
-	if err := database.SaveLike(c.Request.Context(), h.DB, req.UserID, req.RecipeID); err != nil {
+	if err := database.HandleInteraction(c.Request.Context(), h.DB, req.UserID, req.RecipeID, string(req.Action)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to record like",
+			"error": "failed to record " + req.Action,
 		})
 
 		return
 	}
 
-	event := model.LikeEvent{
-		RecipeID:  req.RecipeID,
-		UserID:    req.UserID,
-		Timestamp: time.Now().Unix(),
-		Action:    model.Like,
-	}
-	payload, _ := json.Marshal(event)
-
-	err := h.Producer.Publish(c.Request.Context(), kafka.Message{
-		Topic:      "recipe-likes",
-		Key:        []byte(req.RecipeID),
-		Value:      payload,
-		RetryCount: 0,
-	})
-
-	if err != nil {
-		fmt.Printf("kafka publish error: %v\n", err)
-	} else {
-		log.Println("published like to topic \"recipe-likes\"")
-	}
+	h.PublishInteraction(c, req.RecipeID, req.UserID, string(req.Action))
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "recipe liked",
+		"message": "saved " + req.Action,
 	})
 }

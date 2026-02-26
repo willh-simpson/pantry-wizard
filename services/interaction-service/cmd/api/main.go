@@ -45,7 +45,7 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
-	r.POST("/interactions", handler.LikeRecipe)
+	r.POST("/interactions", handler.Interact)
 
 	log.Printf("interaction service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {

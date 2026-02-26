@@ -15,5 +15,19 @@ CREATE TABLE recipe_likes (
     PRIMARY KEY (user_id, recipe_id)
 );
 
+CREATE TABLE recipe_saves (
+    user_id UUID NOT NULL,
+    recipe_id UUID NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, recipe_id)
+);
+
+CREATE TABLE recipe_views (
+    user_id UUID NOT NULL,
+    recipe_id UUID NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, recipe_id)
+);
+
 CREATE INDEX idx_interaction_stream ON interactions(created_at DESC);
 CREATE INDEX idx_likes_recipe_id ON recipe_likes(recipe_id);

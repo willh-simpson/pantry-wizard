@@ -47,7 +47,7 @@ func main() {
 	consumer := kafka.NewConsumer(
 		[]string{cfg.KafkaBroker},
 		"recommendation-service-group",
-		"recipe-likes",
+		"recipe-interactions",
 		retryProducer,
 	)
 	defer consumer.Close()
@@ -56,12 +56,13 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
+	r.GET("/recommendations", handler.GetTopRecommendations)
 
 	log.Printf("recommendation service starting on port %s...", cfg.Port)
 
 	go func() {
 		log.Println("recommendation service listening for events...")
-		consumer.Consume(context.Background(), handler.ProcessLike)
+		consumer.Consume(context.Background(), handler.ProcessInteraction)
 	}()
 
 	if err := r.Run(cfg.Port); err != nil {
