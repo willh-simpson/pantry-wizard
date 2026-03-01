@@ -11,16 +11,15 @@ repos:
     hooks:
       - id: go-fmt
         name: go fmt
-        entry: go fmt ./..
+        entry: gofmt -w -l
         language: system
-        files: \.go$
-        pass_filenames: false
+        types: [go]
 
       - id: go-imports
         name: go imports
         entry: goimports -w
         language: system
-        files: \.go$
+        types: [go]
 
   # ruff - python
   - repo: https://github.com/astral-sh/ruff-pre-commit

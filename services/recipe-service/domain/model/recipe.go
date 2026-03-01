@@ -25,3 +25,25 @@ type RecipeResponse struct {
 	Title     string    `json:"title"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type SearchResult struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	MatchCount  int     `json:"match_count"`
+	TotalNeeded int     `json:"total_needed"`
+	MatchRatio  float64 `json:"match_ratio"`
+	Stars       int     `json:"stars"`
+}
+
+const (
+	PantryMode       string = "pantry"
+	ShoppingListMode string = "shopping_list"
+
+	StrictSearch       string = "strict"
+	LessStrictSearch   string = "less_strict"
+	UnrestrictedSearch string = "unrestricted"
+
+	StrictThreshold      float64 = 1.0
+	LessStrictThreshold  float64 = 0.7
+	UnrestrictedTreshold float64 = 0.1
+)

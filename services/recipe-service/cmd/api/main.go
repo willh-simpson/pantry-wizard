@@ -45,6 +45,8 @@ func main() {
 	r.GET("/health", handler.HealthCheck)
 	r.GET("/recipes", handler.ListRecipes)
 	r.POST("/recipes", handler.CreateRecipe)
+	r.GET("/admin/ingest", handler.AdminIngest)
+	r.GET("/recipes/search", handler.SearchRecipes)
 
 	log.Printf("identity service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {
