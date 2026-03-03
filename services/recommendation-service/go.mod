@@ -6,7 +6,6 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260224075858-ffe37df3c04d
 )
 
 require (
@@ -37,6 +36,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.50 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
+	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260225234952-111db05769f1
 	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.45.0 // indirect

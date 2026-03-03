@@ -1,7 +1,7 @@
 FROM golang:1.25-alpine AS builder
 
-RUN apk add --no-cache git
-ENV GOPROXY=direct
+# RUN apk add --no-cache git
+# ENV GOPROXY=direct
 
 WORKDIR /app
 
