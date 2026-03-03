@@ -6,9 +6,9 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/willh-simpson/pantry-wizard/services/identity-service/config"
-	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/api"
-	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/database"
+	"github.com/willh-simpson/pantry-wizard/services/user-service/config"
+	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/api"
+	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/database"
 )
 
 func main() {
@@ -39,12 +39,24 @@ func main() {
 	}
 	defer db.Close()
 
-	handler := api.NewIdentityHandler(db)
+	handler := api.NewUserHandler(db)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
 
-	log.Printf("identity service starting on port %s...", cfg.Port)
+	r.GET("/users/:user_id/inventory", handler.GetUserInventory)
+
+	r.POST("/users/:user_id/pantry/add", handler.AddToPantry)
+	r.DELETE("/users/:user_id/pantry/remove", handler.RemoveFromPantry)
+	r.POST("/users/:user_id/pantry/move", handler.MoveToPantry)
+
+	r.POST("/users/:user_id/shopping-list/add", handler.AddToShoppingList)
+	r.DELETE("/users/:user_id/shopping-list/remove", handler.RemoveFromShoppingList)
+
+	r.POST("/users/:user_id/wishlist/add", handler.AddToWishlist)
+	r.DELETE("/users/:user_id/wishlist/remove", handler.RemoveFromWishlist)
+
+	log.Printf("user service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}

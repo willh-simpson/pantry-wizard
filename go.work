@@ -6,4 +6,5 @@ use (
 	./services/interaction-service
 	./services/recipe-service
 	./services/recommendation-service
+	./services/user-service
 )

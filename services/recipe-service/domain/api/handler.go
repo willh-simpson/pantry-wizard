@@ -4,25 +4,28 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log"
+	"math"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/client"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/ingest"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/database"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/model"
 )
 
 type RecipeHandler struct {
-	DB *sql.DB
+	DB         *sql.DB
+	UserClient *client.UserClient
 }
 
 var MEAL_DB_URI = "https://www.themealdb.com/api/json/v1/1/search.php?s="
 
-func NewRecipeHandler(db *sql.DB) *RecipeHandler {
+func NewRecipeHandler(db *sql.DB, userClient client.UserClient) *RecipeHandler {
 	return &RecipeHandler{
-		DB: db,
+		DB:         db,
+		UserClient: &userClient,
 	}
 }
 
@@ -128,32 +131,52 @@ func (h *RecipeHandler) SearchRecipes(c *gin.Context) {
 	mode := c.DefaultQuery("mode", model.PantryMode)
 	strictness := c.DefaultQuery("strictness", model.UnrestrictedSearch)
 
-	pantry := parseIngredients(c.Query("pantry"))
-	shoppingList := parseIngredients(c.Query("shopping_list"))
-	wishlist := parseIngredients(c.Query("wishlist"))
+	userID := c.Query("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "'user_id' is a required field",
+		})
+
+		return
+	}
+
+	var inventory model.UserInventory
+	inventory, err := h.UserClient.FetchUserInventory(c.Request.Context(), userID)
+	if err != nil {
+		log.Printf("failed to fetch user inventory for user %s: %v", userID, err)
+
+		inventory = model.UserInventory{
+			Pantry:       []string{},
+			ShoppingList: []string{},
+			Wishlist:     []string{},
+		}
+	}
+
+	log.Printf("DEBUG: received pantry: %v", inventory.Pantry)
+	log.Printf("DEBUG: received wishlist: %v", inventory.Wishlist)
+	log.Printf("DEBUG: search mode: %s", c.Query("mode"))
 
 	var results []model.SearchResult
-	var err error
 	if mode == model.ShoppingListMode {
 		results, err = database.AdvancedShoppingListSearch(
 			h.DB,
 			c.Request.Context(),
-			shoppingList,
-			wishlist,
+			inventory.ShoppingList,
+			inventory.Wishlist,
 			strictness,
 		)
 	} else {
 		results, err = database.AdvancedPantrySearch(
 			h.DB, c.Request.Context(),
-			pantry,
-			wishlist,
+			inventory.Pantry,
+			inventory.Wishlist,
 			strictness,
 		)
 	}
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "search failed",
-			"message": err.Error(),
+			"message": "search failed",
+			"error":   err.Error(),
 		})
 
 		return
@@ -162,24 +185,11 @@ func (h *RecipeHandler) SearchRecipes(c *gin.Context) {
 	for i := range results {
 		ratio := float64(results[i].MatchCount) / float64(results[i].TotalNeeded)
 
-		results[i].MatchRatio = ratio
+		results[i].MatchRatio = math.Round(ratio*100) / 100 // round to two decimal places for cleaner ratio formatting
 		results[i].Stars = calculateStars(ratio)
 	}
 
 	c.JSON(http.StatusOK, results)
-}
-
-func parseIngredients(raw string) []string {
-	if raw == "" {
-		return []string{}
-	}
-
-	parts := strings.Split(raw, ",")
-	for i := range parts {
-		parts[i] = strings.ToLower(strings.TrimSpace(parts[i]))
-	}
-
-	return parts
 }
 
 func calculateStars(ratio float64) int {

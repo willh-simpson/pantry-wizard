@@ -17,6 +17,24 @@ services:
     networks:
       - pantry-network
 
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "${USER_SERVICE_PORT}:8085"
+    environment:
+      - USER_DB_USER=${USER_DB_USER}
+      - USER_DB_PASSWORD=${USER_DB_PASSWORD}
+      - USER_DB_PORT=5432
+      - USER_DB_HOST=user-db
+    depends_on:
+      user-db:
+        condition: service_healthy
+    networks:
+      - pantry-network
+
   interaction-service:
     build:
       context: ./services/interaction-service
@@ -50,6 +68,8 @@ services:
       - RECIPE_DB_PASSWORD=${RECIPE_DB_PASSWORD}
       - RECIPE_DB_PORT=5432
       - RECIPE_DB_HOST=recipe-db
+      - USER_SERVICE_PORT=${USER_SERVICE_PORT}
+      - USER_SERVICE_HOST=${USER_SERVICE_HOST}
     depends_on:
       recipe-db:
         condition: service_healthy
@@ -90,6 +110,23 @@ services:
       - pantry-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${IDENTITY_DB_USER} -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  user-db:
+    image: postgres:15-alpine
+    container_name: user-db
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: ${USER_DB_USER}
+      POSTGRES_PASSWORD: ${USER_DB_PASSWORD}
+    ports:
+      - "${USER_DB_PORT}:5432"
+    networks:
+      - pantry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${USER_DB_USER} -d user_db"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -1,14 +1,19 @@
 package api
 
 import (
+	"database/sql"
+
 	"github.com/gin-gonic/gin"
 )
 
 type IdentityHandler struct {
+	DB *sql.DB
 }
 
-func NewIdentityHandler() *IdentityHandler {
-	return &IdentityHandler{}
+func NewIdentityHandler(db *sql.DB) *IdentityHandler {
+	return &IdentityHandler{
+		DB: db,
+	}
 }
 
 func (h *IdentityHandler) HealthCheck(c *gin.Context) {

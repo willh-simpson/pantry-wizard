@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/client"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/api"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/database"
@@ -39,7 +40,8 @@ func main() {
 	}
 	defer db.Close()
 
-	handler := api.NewRecipeHandler(db)
+	userClient := *client.NewUserClient(cfg.UserServiceURL)
+	handler := api.NewRecipeHandler(db, userClient)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)

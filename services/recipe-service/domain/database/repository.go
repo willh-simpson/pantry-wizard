@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/ingest"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/model"
 )
@@ -223,6 +223,8 @@ func cleanList(wishlist []string) []string {
 	var cleanedList []string
 
 	for _, w := range wishlist {
+		w = strings.ToLower(strings.TrimSpace(w))
+
 		if !uniqueList[w] && w != "" {
 			uniqueList[w] = true
 			cleanedList = append(cleanedList, w)
