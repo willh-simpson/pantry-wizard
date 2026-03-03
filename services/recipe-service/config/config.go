@@ -10,7 +10,9 @@ type Config struct {
 	DB_DSN         string
 	UserServiceURL string
 	Port           string
-	Environment    string
+	CognitoAppID   string
+	CognitoPoolID  string
+	AWSRegion      string
 }
 
 func LoadConfig() *Config {
@@ -43,9 +45,16 @@ func LoadConfig() *Config {
 	q.Set("sslmode", "disable")
 	u.RawQuery = q.Encode()
 
+	appID := os.Getenv("COGNITO_CLIENT_ID")
+	poolID := os.Getenv("COGNITO_USER_POOL_ID")
+	awsRegion := os.Getenv("AWS_REGION")
+
 	return &Config{
 		DB_DSN:         u.String(),
 		UserServiceURL: userServiceURL,
 		Port:           ":8083",
+		CognitoAppID:   appID,
+		CognitoPoolID:  poolID,
+		AWSRegion:      awsRegion,
 	}
 }

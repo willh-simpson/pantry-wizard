@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/api"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/database"
@@ -40,9 +41,19 @@ func main() {
 	defer db.Close()
 
 	handler := api.NewIdentityHandler(db)
+	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
+	r.POST("/auth/register", handler.Register)
+	r.PUT("/auth/confirm", handler.ConfirmRegistration)
+	r.GET("/auth/login", handler.Login)
+
+	userRoutes := r.Group("/users")
+	userRoutes.Use(validator.AuthWorker(validator.JWKS_URL))
+	{
+		userRoutes.GET("/profile", handler.GetUserProfile)
+	}
 
 	log.Printf("identity service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {

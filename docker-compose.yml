@@ -11,6 +11,9 @@ services:
       - IDENTITY_DB_PASSWORD=${IDENTITY_DB_PASSWORD}
       - IDENTITY_DB_PORT=5432
       - IDENTITY_DB_HOST=identity-db
+      - AWS_REGION=${AWS_REGION}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
     depends_on:
       identity-db:
         condition: service_healthy
@@ -70,6 +73,9 @@ services:
       - RECIPE_DB_HOST=recipe-db
       - USER_SERVICE_PORT=${USER_SERVICE_PORT}
       - USER_SERVICE_HOST=${USER_SERVICE_HOST}
+      - AWS_REGION=${AWS_REGION}
+      - COGNITO_USER_POOL_ID=${COGNITO_USER_POOL_ID}
+      - COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
     depends_on:
       recipe-db:
         condition: service_healthy

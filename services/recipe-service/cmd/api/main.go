@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/client"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/api"
@@ -42,6 +43,7 @@ func main() {
 
 	userClient := *client.NewUserClient(cfg.UserServiceURL)
 	handler := api.NewRecipeHandler(db, userClient)
+	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
@@ -49,6 +51,12 @@ func main() {
 	r.POST("/recipes", handler.CreateRecipe)
 	r.GET("/admin/ingest", handler.AdminIngest)
 	r.GET("/recipes/search", handler.SearchRecipes)
+
+	protected := r.Group("/recipes")
+	protected.Use(validator.AuthWorker(validator.JWKS_URL))
+	{
+		protected.GET("/search", handler.SearchRecipes)
+	}
 
 	log.Printf("identity service starting on port %s...", cfg.Port)
 	if err := r.Run(cfg.Port); err != nil {
