@@ -40,7 +40,7 @@ func CreateOrUpdateUser(db *sql.DB, ctx context.Context, email, externalID, disp
 
 func GetUserByEmail(db *sql.DB, ctx context.Context, email string) (*model.User, error) {
 	query, args, err := psql.
-		Select("id", "external_id", "email", "display_name", "dietary_flags").
+		Select("id", "external_id", "email", "display_name", "dietary_flags", "created_at", "updated_at").
 		From("users").
 		Where("email = ?", email).
 		ToSql()
@@ -51,7 +51,7 @@ func GetUserByEmail(db *sql.DB, ctx context.Context, email string) (*model.User,
 	var user model.User
 	err = db.
 		QueryRowContext(ctx, query, args...).
-		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags))
+		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select user: %w", err)
 	}
@@ -61,7 +61,7 @@ func GetUserByEmail(db *sql.DB, ctx context.Context, email string) (*model.User,
 
 func GetUserByExternalID(db *sql.DB, ctx context.Context, externalID string) (*model.User, error) {
 	query, args, err := psql.
-		Select("id", "external_id", "email", "display_name", "dietary_flags", "created_at").
+		Select("id", "external_id", "email", "display_name", "dietary_flags", "created_at", "updated_at").
 		From("users").
 		Where("external_id = ?", externalID).
 		ToSql()
@@ -72,7 +72,7 @@ func GetUserByExternalID(db *sql.DB, ctx context.Context, externalID string) (*m
 	var user model.User
 	err = db.
 		QueryRowContext(ctx, query, args...).
-		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt)
+		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select user: %w", err)
 	}

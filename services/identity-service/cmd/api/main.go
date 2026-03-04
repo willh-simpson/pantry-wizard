@@ -42,6 +42,11 @@ func main() {
 	defer db.Close()
 
 	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
+	if validator == nil {
+		log.Printf("validator is nil")
+	} else {
+		log.Printf("validator started: JWKS_URL: %s", validator.JWKS_URL)
+	}
 	cognitoClient, err := client.NewCognitoClient(cfg.AWSRegion, cfg.CognitoAppID, cfg.CognitoPoolID)
 	if err != nil {
 		log.Fatalf("failed to initialize cognito client: %v", err)
