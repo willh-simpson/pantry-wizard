@@ -19,6 +19,8 @@ func (v *TokenValidator) AuthWorker(jwksURL string) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"error": "auth validator not initizalized",
 			})
+
+			return
 		}
 
 		authHeader := c.GetHeader("Authorization")

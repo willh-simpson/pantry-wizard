@@ -86,9 +86,16 @@ $Headers = @{
 }
 
 try {
-    $UserProfile = Invoke-RestMethod -Method Get -Uri "$BaseUrl/users/profile" -Headers $Headers
-    Write-Host "verifcation successful: identity-service recognized user" -ForegroundColor Green
-    $UserProfile | Format-List
+    $UserProfile = Invoke-WebRequest -Method Get -Uri "$BaseUrl/users/profile" -Headers $Headers -UseBasicParsing
+    Write-Host "Success!" -ForegroundColor Green
+    $UserProfile.Content | ConvertFrom-Json | Format-List
 } catch {
-    Write-Host "Verification Failed: $($_.Exception.Message)" -ForegroundColor Red
+    $rawResponse = $_.Exception.Response
+    if ($rawResponse) {
+        $reader = New-Object System.IO.StreamReader($rawResponse.GetResponseStream())
+        $body = $reader.ReadToEnd()
+        Write-Host "CRITICAL SERVER ERROR: $body" -ForegroundColor Red
+    } else {
+        Write-Host "No response from server. Is the service down?" -ForegroundColor Red
+    }
 }
