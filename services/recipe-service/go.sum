@@ -134,8 +134,8 @@ github.com/twitchyliquid64/golang-asm v0.15.1 h1:SU5vSMR7hnwNxj24w34ZyCi/FmDZTkS
 github.com/twitchyliquid64/golang-asm v0.15.1/go.mod h1:a1lVb/DtPvCB8fslRZhAngC2+aY1QWCk3Cedj/Gdt08=
 github.com/ugorji/go/codec v1.3.1 h1:waO7eEiFDwidsBN6agj1vJQ4AG7lh2yqXyOXqhgQuyY=
 github.com/ugorji/go/codec v1.3.1/go.mod h1:pRBVtBSKl77K30Bv8R2P+cLSGaTtex6fsA2Wjqmfxj4=
-github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260303151643-56696724823e h1:KdWIsG/Ie/EU7fttO2GwcsCmS43dJa+hYF+x9img/QI=
-github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260303151643-56696724823e/go.mod h1:8fAj3JKYwvrDn9SiBC+KKBkxTLKjZzwuSpHSwaIugcs=
+github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304202515-407e3b3bccaa h1:cVJ+DYVeUkaYaOemcrSY5v1iMUdVtJiRsoMk3jBZd8k=
+github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304202515-407e3b3bccaa/go.mod h1:8fAj3JKYwvrDn9SiBC+KKBkxTLKjZzwuSpHSwaIugcs=
 go.mongodb.org/mongo-driver/v2 v2.5.0 h1:yXUhImUjjAInNcpTcAlPHiT7bIXhshCTL3jVBkF3xaE=
 go.mongodb.org/mongo-driver/v2 v2.5.0/go.mod h1:yOI9kBsufol30iFsl1slpdq1I0eHPzybRWdyYUs8K/0=
 go.opentelemetry.io/auto/sdk v1.1.0 h1:cH53jehLUN6UFLY71z+NDOiNJqDdPRaXzTel0sJySYA=

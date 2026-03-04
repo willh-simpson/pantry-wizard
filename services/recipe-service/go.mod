@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
-	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260303151643-56696724823e
+	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304202515-407e3b3bccaa
 )
 
 require (

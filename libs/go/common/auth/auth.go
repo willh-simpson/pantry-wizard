@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -11,7 +12,7 @@ import (
 
 func (v *TokenValidator) AuthWorker(jwksURL string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Printf("processing request for %s", c.Request.URL.Path)
+		fmt.Printf("processing request for %s", c.Request.URL.Path)
 
 		if v == nil || v.JWKSCache == nil {
 			log.Printf("CRITICAL: TokenValidator or cache is nil")

@@ -13,6 +13,7 @@ type User struct {
 	DisplayName  string    `json:"display_name"`
 	DietaryFlags []string  `json:"dietary_flags"`
 	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type RegisterRequest struct {
