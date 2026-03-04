@@ -1,5 +1,21 @@
-$BaseUrl = "http://identity-service:8081"
-$Email = "your-test-email@example.com"
+$EnvPath = "../../.env"
+
+if (Test-Path $EnvPath) {
+    Get-Content $EnvPath | ForEach-Object {
+        if ($_ -match "^([^#\s][^=]*)=(.*)$") {
+            $Key = $matches[1].Trim()
+            $Value = $matches[2].Trim().Trim('"').Trim("'")
+            Set-Variable -Name $Key -Value $Value -Scope Global
+        }
+    }
+
+    Write-Host "--- .env loaded successfully ---" -ForegroundColor Gray
+} else {
+    Write-Host "--- warning: .env not found at $EnvPath ---" -ForegroundColor Yellow
+}
+
+$BaseUrl = "http://localhost:8081"
+$Email = "dummy-email@test.local"
 $UserKey = "PantryWizard123!" # workaround for detect-secrets since this is not a real user
 $DisplayName = "pantry-wizard user"
 
@@ -13,18 +29,39 @@ $RegBody = @{
 
 $RegResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/auth/register" -Body $RegBody -ContentType "application/json"
 $RegResponse | Format-Table
-Write-Host "success: check your email for the Cognito verification code" -ForegroundColor Green
+Write-Host "success: moving to confirm user (normally 6-digit code sent to email)" -ForegroundColor Green
 
 # confirm registration
-$Code = Read-Host "enter the 6-digit code from your email"
+Write-Host "--- STEP B: Admin Force-Confirming User ---" -ForegroundColor Cyan
 
-$ConfirmBody = @{
-    email = $Email
-    code  = $Code
-} | ConvertTo-Json
+if (-not $COGNITO_USER_POOL_ID) {
+    Write-Host "error: COGNITO_USER_POOL_ID not found in .env" -ForegroundColor Red
+    exit
+}
 
-Invoke-RestMethod -Method Put -Uri "$BaseUrl/auth/confirm" -Body $ConfirmBody -ContentType "application/json"
-Write-Host "account confirmed successfully" -ForegroundColor Green
+# aws CLI command
+aws cognito-idp admin-confirm-sign-up `
+    --user-pool-id $COGNITO_USER_POOL_ID `
+    --username $Email `
+    --region $AWS_REGION
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "user $Email successfully confirmed via Admin API" -ForegroundColor Green
+} else {
+    Write-Host "failed to confirm user: make sure AWS CLI is configured" -ForegroundColor Red
+    exit
+}
+
+Write-Host "--- STEP B.5: Verifying Email Attribute ---" -ForegroundColor Cyan
+aws cognito-idp admin-update-user-attributes `
+    --user-pool-id $COGNITO_USER_POOL_ID `
+    --username $Email `
+    --user-attributes Name=email_verified,Value=true `
+    --region $AWS_REGION
+
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "email verified" -ForegroundColor Green
+}
 
 # login
 Write-Host "--- STEP C: Logging In ---" -ForegroundColor Cyan
@@ -33,7 +70,7 @@ $LoginBody = @{
     password = $UserKey
 } | ConvertTo-Json
 
-$LoginResponse = Invoke-RestMethod -Method Get -Uri "$BaseUrl/auth/login" -Body $LoginBody -ContentType "application/json"
+$LoginResponse = Invoke-RestMethod -Method Post -Uri "$BaseUrl/auth/login" -Body $LoginBody -ContentType "application/json"
 
 # Save the token for the next request
 $Global:AccessToken = $LoginResponse.access_token

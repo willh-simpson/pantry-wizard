@@ -47,15 +47,14 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
-	r.GET("/recipes", handler.ListRecipes)
-	r.POST("/recipes", handler.CreateRecipe)
 	r.GET("/admin/ingest", handler.AdminIngest)
-	r.GET("/recipes/search", handler.SearchRecipes)
 
 	protected := r.Group("/recipes")
 	protected.Use(validator.AuthWorker(validator.JWKS_URL))
 	{
 		protected.GET("/search", handler.SearchRecipes)
+		protected.GET("", handler.ListRecipes)
+		protected.POST("", handler.CreateRecipe)
 	}
 
 	log.Printf("identity service starting on port %s...", cfg.Port)

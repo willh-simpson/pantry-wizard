@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/lib/pq"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/model"
 )
 
@@ -21,7 +22,7 @@ func CreateOrUpdateUser(db *sql.DB, ctx context.Context, email, externalID, disp
 		ON CONFLICT (external_id)
 		DO UPDATE SET
 			display_name = EXCLUDED.display_name,
-			updated_at = NOW(),
+			updated_at = NOW()
 		RETURNING id, external_id, email, display_name, dietary_flags, created_at
 	`).
 		ToSql()
@@ -29,7 +30,7 @@ func CreateOrUpdateUser(db *sql.DB, ctx context.Context, email, externalID, disp
 	var user model.User
 	err = db.
 		QueryRowContext(ctx, query, args...).
-		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, &user.DietaryFlags, &user.CreatedAt)
+		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sync user to local db: %w", err)
 	}
@@ -50,7 +51,7 @@ func GetUserByEmail(db *sql.DB, ctx context.Context, email string) (*model.User,
 	var user model.User
 	err = db.
 		QueryRowContext(ctx, query, args...).
-		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, &user.DietaryFlags)
+		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags))
 	if err != nil {
 		return nil, fmt.Errorf("failed to select user: %w", err)
 	}
@@ -71,7 +72,7 @@ func GetUserByExternalID(db *sql.DB, ctx context.Context, externalID string) (*m
 	var user model.User
 	err = db.
 		QueryRowContext(ctx, query, args...).
-		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, &user.DietaryFlags, &user.CreatedAt)
+		Scan(&user.ID, &user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select user: %w", err)
 	}
