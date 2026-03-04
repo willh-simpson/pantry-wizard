@@ -16,9 +16,10 @@ type IdentityHandler struct {
 	CognitoClient *client.CognitoClient
 }
 
-func NewIdentityHandler(db *sql.DB) *IdentityHandler {
+func NewIdentityHandler(db *sql.DB, cognitoClient *client.CognitoClient) *IdentityHandler {
 	return &IdentityHandler{
-		DB: db,
+		DB:            db,
+		CognitoClient: cognitoClient,
 	}
 }
 

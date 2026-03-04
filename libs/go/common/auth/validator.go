@@ -15,7 +15,7 @@ type TokenValidator struct {
 
 func NewTokenValidator(region, userPoolID string) *TokenValidator {
 	ctx := context.Background()
-	url := fmt.Sprintf("http://cognito-idp.%s.amazonaws.com/%s/.well-known/jwks.json", region, userPoolID)
+	url := fmt.Sprintf("https://cognito-idp.%s.amazonaws.com/%s/.well-known/jwks.json", region, userPoolID)
 
 	cache := jwk.NewCache(ctx)
 	cache.Register(url, jwk.WithMinRefreshInterval(15*time.Minute))

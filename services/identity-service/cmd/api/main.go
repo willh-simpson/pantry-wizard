@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
+	"github.com/willh-simpson/pantry-wizard/services/identity-service/auth/client"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/api"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/database"
@@ -40,14 +41,19 @@ func main() {
 	}
 	defer db.Close()
 
-	handler := api.NewIdentityHandler(db)
 	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
+	cognitoClient, err := client.NewCognitoClient(cfg.AWSRegion, cfg.CognitoAppID, cfg.CognitoPoolID)
+	if err != nil {
+		log.Fatalf("failed to initialize cognito client: %v", err)
+	}
+
+	handler := api.NewIdentityHandler(db, cognitoClient)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
 	r.POST("/auth/register", handler.Register)
-	r.PUT("/auth/confirm", handler.ConfirmRegistration)
-	r.GET("/auth/login", handler.Login)
+	r.POST("/auth/confirm", handler.ConfirmRegistration)
+	r.POST("/auth/login", handler.Login)
 
 	userRoutes := r.Group("/users")
 	userRoutes.Use(validator.AuthWorker(validator.JWKS_URL))
