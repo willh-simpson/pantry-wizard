@@ -10,7 +10,6 @@ type Config struct {
 	DB_DSN      string
 	Port        string
 	KafkaBroker string
-	Environment string
 }
 
 func LoadConfig() *Config {

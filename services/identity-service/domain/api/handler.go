@@ -2,10 +2,14 @@ package api
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/events"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/auth/client"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/database"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/model"
@@ -13,12 +17,14 @@ import (
 
 type IdentityHandler struct {
 	DB            *sql.DB
+	KafkaProducer kafka.Producer
 	CognitoClient *client.CognitoClient
 }
 
-func NewIdentityHandler(db *sql.DB, cognitoClient *client.CognitoClient) *IdentityHandler {
+func NewIdentityHandler(db *sql.DB, kafkaProducer kafka.Producer, cognitoClient *client.CognitoClient) *IdentityHandler {
 	return &IdentityHandler{
 		DB:            db,
+		KafkaProducer: kafkaProducer,
 		CognitoClient: cognitoClient,
 	}
 }
@@ -84,6 +90,8 @@ func (h *IdentityHandler) Register(c *gin.Context) {
 
 		return
 	}
+
+	h.publishUserEvent(c, user, string(events.UserCreated))
 
 	c.JSON(http.StatusCreated, user)
 }
@@ -154,4 +162,26 @@ func (h *IdentityHandler) Login(c *gin.Context) {
 		"expires_in":    authResult.ExpiresIn,
 		"user":          user,
 	})
+}
+
+func (h *IdentityHandler) publishUserEvent(c *gin.Context, user *model.User, action string) {
+	event := events.UserSyncedEvent{
+		ExternalID:  user.ExternalID,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
+		Action:      action,
+	}
+	payload, _ := json.Marshal(event)
+
+	err := h.KafkaProducer.Publish(c.Request.Context(), kafka.Message{
+		Topic:      "user-events",
+		Key:        []byte(user.ExternalID),
+		Value:      payload,
+		RetryCount: 0,
+	})
+	if err != nil {
+		fmt.Printf("kafka publish error: %v", err)
+	} else {
+		fmt.Printf("published user action '%s' to topic \"user-events\"", action)
+	}
 }
