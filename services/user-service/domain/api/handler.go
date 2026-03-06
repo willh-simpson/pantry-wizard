@@ -1,10 +1,15 @@
 package api
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/events"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/database"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/model"
 )
@@ -19,6 +24,23 @@ func NewUserHandler(db *sql.DB) *UserHandler {
 	}
 }
 
+func (h *UserHandler) ProcessUserEvent(ctx context.Context, msg kafka.Message) error {
+	var event events.UserSyncedEvent
+
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		return err
+	}
+
+	log.Printf("syncing user with name '%s'", event.DisplayName)
+
+	err := database.UpsertUser(h.DB, ctx, event.ExternalID, event.Email, event.DisplayName)
+	if err != nil {
+		log.Printf("could not sync user with name '%s': %v", event.DisplayName, err)
+	}
+
+	return err
+}
+
 func (h *UserHandler) HealthCheck(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status":   "up",
@@ -28,9 +50,16 @@ func (h *UserHandler) HealthCheck(c *gin.Context) {
 }
 
 func (h *UserHandler) GetUserInventory(c *gin.Context) {
-	userID := c.Param("user_id")
+	userID, exists := c.Get("user_external_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "user identity not found",
+		})
 
-	inventory, err := database.GetFullInventory(h.DB, c.Request.Context(), userID)
+		return
+	}
+
+	inventory, err := database.GetFullInventory(h.DB, c.Request.Context(), userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "failed to fetch user inventory",
@@ -66,7 +95,17 @@ func (h *UserHandler) RemoveFromWishlist(c *gin.Context) {
 }
 
 func (h *UserHandler) MoveToPantry(c *gin.Context) {
-	userID := c.Param("user_id")
+	externalID := c.MustGet("user_external_id").(string)
+
+	internalID, err := database.GetInternalID(h.DB, c.Request.Context(), externalID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "user not found in local records",
+			"error":   err.Error(),
+		})
+
+		return
+	}
 
 	var req model.UpdateInventoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -78,7 +117,7 @@ func (h *UserHandler) MoveToPantry(c *gin.Context) {
 		return
 	}
 
-	err := database.MoveToPantry(h.DB, c.Request.Context(), userID, req.Items)
+	err = database.MoveToPantry(h.DB, c.Request.Context(), internalID, req.Items)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "failed to move items to pantry",
@@ -93,8 +132,64 @@ func (h *UserHandler) MoveToPantry(c *gin.Context) {
 	})
 }
 
+func (h *UserHandler) GetProfile(c *gin.Context) {
+	externalID := c.MustGet("user_external_id").(string)
+
+	user, err := database.GetUserByExternalID(h.DB, c.Request.Context(), externalID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "profile not found",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
+func (h *UserHandler) UpdatePreferences(c *gin.Context) {
+	externalID := c.MustGet("user_external_id").(string)
+
+	var input struct {
+		DietaryFlags []string `json:"dietary_flags"`
+	}
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "invalid input",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	err := database.UpdateUserPreferences(h.DB, c.Request.Context(), externalID, input.DietaryFlags)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "could not update user preferences",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "user preferences updated successfully",
+	})
+}
+
 func (h *UserHandler) handleListUpdate(c *gin.Context, table string, isAddOperation bool) {
-	userID := c.Param("user_id")
+	externalID := c.MustGet("user_external_id").(string)
+
+	internalID, err := database.GetInternalID(h.DB, c.Request.Context(), externalID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "user not found in local records",
+			"error":   err.Error(),
+		})
+
+		return
+	}
 
 	var req model.UpdateInventoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -105,13 +200,12 @@ func (h *UserHandler) handleListUpdate(c *gin.Context, table string, isAddOperat
 		return
 	}
 
-	var err error
 	var httpStatus int
 	if isAddOperation {
-		err = database.AddItemsToList(h.DB, c.Request.Context(), table, userID, req.Items)
+		err = database.AddItemsToList(h.DB, c.Request.Context(), table, internalID, req.Items)
 		httpStatus = http.StatusCreated
 	} else {
-		err = database.RemoveItemsFromList(h.DB, c.Request.Context(), table, userID, req.Items)
+		err = database.RemoveItemsFromList(h.DB, c.Request.Context(), table, internalID, req.Items)
 		httpStatus = http.StatusOK
 	}
 

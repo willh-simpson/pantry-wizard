@@ -1,5 +1,16 @@
 package model
 
+import "time"
+
+type User struct {
+	ExternalID   string    `json:"external_id"`
+	Email        string    `json:"email"`
+	DisplayName  string    `json:"display_name"`
+	DietaryFlags []string  `json:"dietary_flags"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 type UserInventory struct {
 	UserID       string   `json:"user_id"`
 	Pantry       []string `json:"pantry"`

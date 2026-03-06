@@ -62,6 +62,7 @@ func main() {
 
 	go func() {
 		log.Println("recommendation service listening for events...")
+
 		consumer.Consume(context.Background(), handler.ProcessInteraction)
 	}()
 

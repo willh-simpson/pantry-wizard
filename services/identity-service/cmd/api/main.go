@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/auth/client"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/identity-service/domain/api"
@@ -52,7 +53,10 @@ func main() {
 		log.Fatalf("failed to initialize cognito client: %v", err)
 	}
 
-	handler := api.NewIdentityHandler(db, cognitoClient)
+	kafkaProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
+	defer kafkaProducer.Close()
+
+	handler := api.NewIdentityHandler(db, kafkaProducer, cognitoClient)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)

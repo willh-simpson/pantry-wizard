@@ -59,7 +59,7 @@ func (h *InteractionHandler) PublishInteraction(c *gin.Context, recipeID, userID
 	})
 
 	if err != nil {
-		fmt.Printf("kafka publish error: %v\n", err)
+		fmt.Printf("kafka publish error: %v", err)
 	} else {
 		log.Printf("published %s to topic \"recipe-interactions\"", action)
 	}

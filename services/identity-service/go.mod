@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider v1.59.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/uuid v1.6.0
-	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304202515-407e3b3bccaa
+	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304231112-96288852c23a
 )
 
 require (
@@ -27,6 +27,7 @@ require (
 	github.com/aws/smithy-go v1.24.1 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
@@ -35,7 +36,9 @@ require (
 	github.com/lestrrat-go/iter v1.0.2 // indirect
 	github.com/lestrrat-go/jwx/v2 v2.1.6 // indirect
 	github.com/lestrrat-go/option v1.0.1 // indirect
+	github.com/pierrec/lz4/v4 v4.1.16 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/segmentio/kafka-go v0.4.50 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 )
 

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/squirrel"
+	"github.com/lib/pq"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/model"
 	"golang.org/x/sync/errgroup"
 )
@@ -17,6 +18,45 @@ type DBExecutor interface {
 }
 
 var psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+func GetUserByExternalID(db *sql.DB, ctx context.Context, externalID string) (*model.User, error) {
+	query, args, err := psql.
+		Select("external_id", "email", "display_name", "dietary_flags", "created_at", "updated_at").
+		From("users").
+		Where("external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("could not build query: %w", err)
+	}
+
+	var user model.User
+	err = db.
+		QueryRowContext(ctx, query, args...).
+		Scan(&user.ExternalID, &user.Email, &user.DisplayName, pq.Array(&user.DietaryFlags), &user.CreatedAt, &user.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("could not fetch user: %w", err)
+	}
+
+	return &user, nil
+}
+
+func UpdateUserPreferences(db *sql.DB, ctx context.Context, externalID string, dietaryFlags []string) error {
+	query, args, err := psql.
+		Update("users").
+		Set("dietary_flags", pq.Array(dietaryFlags)).
+		Where("external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("error building query: %w", err)
+	}
+
+	_, err = db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("error updating user preferences: %w", err)
+	}
+
+	return nil
+}
 
 func GetFullInventory(db *sql.DB, ctx context.Context, userID string) (*model.UserInventory, error) {
 	var inventory model.UserInventory
@@ -63,113 +103,6 @@ func GetFullInventory(db *sql.DB, ctx context.Context, userID string) (*model.Us
 	}
 
 	return &inventory, nil
-}
-
-// squirrel does not support dynamic table names.
-// separate methods will be needed to keep paramaterized queries. logic is the exact same
-func fetchPantry(db *sql.DB, ctx context.Context, userID string) ([]string, error) {
-	query, args, err := psql.
-		Select("ingredient_name").
-		From("user_pantry").
-		Where("user_id = ?", userID).
-		ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("fetch pantry - failed to build query: %w", err)
-	}
-
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("fetch pantry - failed to execute query: %w", err)
-	}
-	defer rows.Close()
-
-	var ingredients []string
-	for rows.Next() {
-		var name string
-
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("fetch pantry - failed to map query: %w", err)
-		}
-
-		ingredients = append(ingredients, name)
-	}
-
-	// returning empty slice instead of nil object makes for cleaner JSON
-	if ingredients == nil {
-		return []string{}, nil
-	}
-
-	return ingredients, nil
-}
-
-func fetchShoppingList(db *sql.DB, ctx context.Context, userID string) ([]string, error) {
-	query, args, err := psql.
-		Select("ingredient_name").
-		From("user_shopping_list").
-		Where("user_id = ?", userID).
-		ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("fetch shopping list - failed to build query: %w", err)
-	}
-
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("fetch shopping list - failed to execute query: %w", err)
-	}
-	defer rows.Close()
-
-	var ingredients []string
-	for rows.Next() {
-		var name string
-
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("fetch shopping list - failed to map query: %w", err)
-		}
-
-		ingredients = append(ingredients, name)
-	}
-
-	// returning empty slice instead of nil object makes for cleaner JSON
-	if ingredients == nil {
-		return []string{}, nil
-	}
-
-	return ingredients, nil
-}
-
-func fetchWishlist(db *sql.DB, ctx context.Context, userID string) ([]string, error) {
-	query, args, err := psql.
-		Select("ingredient_name").
-		From("user_wishlist").
-		Where("user_id = ?", userID).
-		ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("fetch wishlist - failed to build query: %w", err)
-	}
-
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("fetch wishlist - failed to execute query: %w", err)
-	}
-	defer rows.Close()
-
-	var ingredients []string
-	for rows.Next() {
-		var name string
-
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("fetch wishlist - failed to map query: %w", err)
-		}
-
-		ingredients = append(ingredients, name)
-	}
-
-	// returning empty slice instead of nil object makes for cleaner JSON
-	if ingredients == nil {
-		return []string{}, nil
-	}
-
-	return ingredients, nil
 }
 
 func AddItemsToList(ex DBExecutor, ctx context.Context, table, userID string, items []string) error {
@@ -248,6 +181,164 @@ func MoveToPantry(db *sql.DB, ctx context.Context, userID string, items []string
 	return tx.Commit()
 }
 
+func UpsertUser(db *sql.DB, ctx context.Context, externalID, email, displayName string) error {
+	query, args, err := psql.
+		Insert("users").
+		Columns("external_id", "email", "display_name").
+		Values(externalID, email, displayName).
+		Suffix(`
+		ON CONFLICT (external_id)
+		DO UPDATE SET display_name = EXCLUDED.display_name
+	`).
+		ToSql()
+	if err != nil {
+		return fmt.Errorf("could not build query: %w", err)
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+		return fmt.Errorf("could not execute transaction: %w", err)
+	}
+
+	return tx.Commit()
+}
+
 func cleanStringValue(str string) string {
 	return strings.ToLower(strings.TrimSpace(str))
+}
+
+// squirrel does not support dynamic table names.
+// separate methods will be needed to keep paramaterized queries. logic is the exact same
+func fetchPantry(db *sql.DB, ctx context.Context, externalID string) ([]string, error) {
+	query, args, err := psql.
+		Select("p.ingredient_name").
+		From("user_pantry p").
+		Join("users u ON p.user_id = u.id").
+		Where("u.external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("fetch pantry - failed to build query: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fetch pantry - failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var ingredients []string
+	for rows.Next() {
+		var name string
+
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("fetch pantry - failed to map query: %w", err)
+		}
+
+		ingredients = append(ingredients, name)
+	}
+
+	// returning empty slice instead of nil object makes for cleaner JSON
+	if ingredients == nil {
+		return []string{}, nil
+	}
+
+	return ingredients, nil
+}
+
+func fetchShoppingList(db *sql.DB, ctx context.Context, externalID string) ([]string, error) {
+	query, args, err := psql.
+		Select("s.ingredient_name").
+		From("user_shopping_list s").
+		Join("users u ON s.user_id = u.id").
+		Where("u.external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("fetch shopping list - failed to build query: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fetch shopping list - failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var ingredients []string
+	for rows.Next() {
+		var name string
+
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("fetch shopping list - failed to map query: %w", err)
+		}
+
+		ingredients = append(ingredients, name)
+	}
+
+	// returning empty slice instead of nil object makes for cleaner JSON
+	if ingredients == nil {
+		return []string{}, nil
+	}
+
+	return ingredients, nil
+}
+
+func fetchWishlist(db *sql.DB, ctx context.Context, externalID string) ([]string, error) {
+	query, args, err := psql.
+		Select("w.ingredient_name").
+		From("user_wishlist w").
+		Join("users u ON w.user_id = u.id").
+		Where("u.external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("fetch wishlist - failed to build query: %w", err)
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fetch wishlist - failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var ingredients []string
+	for rows.Next() {
+		var name string
+
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("fetch wishlist - failed to map query: %w", err)
+		}
+
+		ingredients = append(ingredients, name)
+	}
+
+	// returning empty slice instead of nil object makes for cleaner JSON
+	if ingredients == nil {
+		return []string{}, nil
+	}
+
+	return ingredients, nil
+}
+
+func GetInternalID(db *sql.DB, ctx context.Context, externalID string) (string, error) {
+	query, args, err := psql.
+		Select("id").
+		From("users").
+		Where("external_id = ?", externalID).
+		ToSql()
+	if err != nil {
+		return "", fmt.Errorf("error building query: %w", err)
+	}
+
+	var internalID string
+	err = db.
+		QueryRowContext(ctx, query, args...).
+		Scan(&internalID)
+	if err != nil {
+		return "", fmt.Errorf("error fetching internal user id: %w", err)
+	}
+
+	return internalID, err
 }

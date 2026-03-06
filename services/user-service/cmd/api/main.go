@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"log"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/api"
 	"github.com/willh-simpson/pantry-wizard/services/user-service/domain/database"
@@ -39,24 +42,56 @@ func main() {
 	}
 	defer db.Close()
 
+	retryProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
+	defer retryProducer.Close()
+
+	kafkaConsumer := kafka.NewConsumer(
+		[]string{cfg.KafkaBroker},
+		"user-service-group",
+		"user-events",
+		retryProducer,
+	)
+	defer kafkaConsumer.Close()
+
+	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
+	if validator == nil {
+		log.Printf("validator is nil")
+	} else {
+		log.Printf("validator started: JWKS_URL: %s", validator.JWKS_URL)
+	}
+
 	handler := api.NewUserHandler(db)
 
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
 
-	r.GET("/users/:user_id/inventory", handler.GetUserInventory)
+	userGroup := r.Group("/me")
+	userGroup.Use(validator.AuthWorker(validator.JWKS_URL))
+	{
+		userGroup.GET("/inventory", handler.GetUserInventory)
 
-	r.POST("/users/:user_id/pantry/add", handler.AddToPantry)
-	r.DELETE("/users/:user_id/pantry/remove", handler.RemoveFromPantry)
-	r.POST("/users/:user_id/pantry/move", handler.MoveToPantry)
+		userGroup.POST("/pantry/add", handler.AddToPantry)
+		userGroup.DELETE("/pantry/remove", handler.RemoveFromPantry)
+		userGroup.POST("/pantry/move", handler.MoveToPantry)
 
-	r.POST("/users/:user_id/shopping-list/add", handler.AddToShoppingList)
-	r.DELETE("/users/:user_id/shopping-list/remove", handler.RemoveFromShoppingList)
+		userGroup.POST("/shopping-list/add", handler.AddToShoppingList)
+		userGroup.DELETE("/shopping-list/remove", handler.RemoveFromShoppingList)
 
-	r.POST("/users/:user_id/wishlist/add", handler.AddToWishlist)
-	r.DELETE("/users/:user_id/wishlist/remove", handler.RemoveFromWishlist)
+		userGroup.POST("/wishlist/add", handler.AddToWishlist)
+		userGroup.DELETE("/wishlist/remove", handler.RemoveFromWishlist)
+
+		userGroup.GET("/profile", handler.GetProfile)
+		userGroup.PUT("/preferences", handler.UpdatePreferences)
+	}
 
 	log.Printf("user service starting on port %s...", cfg.Port)
+
+	go func() {
+		log.Println("user service listening for events...")
+
+		kafkaConsumer.Consume(context.Background(), handler.ProcessUserEvent)
+	}()
+
 	if err := r.Run(cfg.Port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}
