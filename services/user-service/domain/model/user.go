@@ -21,3 +21,7 @@ type UserInventory struct {
 type UpdateInventoryRequest struct {
 	Items []string `json:"items" binding:"required"`
 }
+
+type UpdatePreferencesRequest struct {
+	DietaryFlags []string `json:"dietary_flags" binding:"required"`
+}

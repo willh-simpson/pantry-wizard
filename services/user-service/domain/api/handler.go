@@ -151,9 +151,7 @@ func (h *UserHandler) GetProfile(c *gin.Context) {
 func (h *UserHandler) UpdatePreferences(c *gin.Context) {
 	externalID := c.MustGet("user_external_id").(string)
 
-	var input struct {
-		DietaryFlags []string `json:"dietary_flags"`
-	}
+	var input model.UpdatePreferencesRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"message": "invalid input",

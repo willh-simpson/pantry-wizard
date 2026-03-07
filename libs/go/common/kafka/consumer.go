@@ -30,6 +30,7 @@ func NewConsumer(brokers []string, groupID string, topic string, producer Produc
 }
 
 func (c *Consumer) Consume(ctx context.Context, handler Handler) {
+	log.Printf("consuming...")
 	for {
 		m, err := c.reader.ReadMessage(ctx)
 		if err != nil {
