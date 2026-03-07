@@ -7,7 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/lib/pq v1.11.2
-	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304231112-96288852c23a
+	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260306210338-d4335c8a05ea
 	golang.org/x/sync v0.19.0
 )
 

@@ -81,7 +81,7 @@ func main() {
 		userGroup.DELETE("/wishlist/remove", handler.RemoveFromWishlist)
 
 		userGroup.GET("/profile", handler.GetProfile)
-		userGroup.PUT("/preferences", handler.UpdatePreferences)
+		userGroup.PUT("/profile/preferences", handler.UpdatePreferences)
 	}
 
 	log.Printf("user service starting on port %s...", cfg.Port)

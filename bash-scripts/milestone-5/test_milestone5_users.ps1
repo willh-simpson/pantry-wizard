@@ -34,8 +34,8 @@ $Global:AccessToken = $LoginResponse.access_token
 Write-Host "Logged in. Token captured." -ForegroundColor Green
 
 # --- STEP C: Propagation Wait ---
-Write-Host "--- STEP C: Waiting for Kafka Sync (2s) ---" -ForegroundColor Yellow
-Start-Sleep -Seconds 2
+Write-Host "--- STEP C: Waiting for Kafka Sync (3s) ---" -ForegroundColor Yellow
+Start-Sleep -Seconds 3
 
 # --- STEP D: Verify User Service Profile ---
 Write-Host "--- STEP D: Checking Profile in User Service ---" -ForegroundColor Cyan
@@ -54,15 +54,15 @@ try {
 Write-Host "--- STEP E: Adding Items to Pantry & Shopping List ---" -ForegroundColor Cyan
 
 $Items = @(
-    @{ Path = "pantry/add"; Ingredient = "Onions" },
-    @{ Path = "pantry/add"; Ingredient = "Garlic" },
-    @{ Path = "shopping-list/add"; Ingredient = "Milk" }
+    @{ Path = "pantry/add"; Ingredients = @("Onions", "Tomatoes") },
+    @{ Path = "pantry/add"; Ingredients = @("Garlic") },
+    @{ Path = "shopping-list/add"; Ingredients = @("Milk", "Green Bell Peppers", "Honeycrisp Apple", "Corn") }
 )
 
 foreach ($Item in $Items) {
-    $Body = @{ ingredient_name = $Item.Ingredient } | ConvertTo-Json
+    $Body = @{ items = $Item.Ingredients } | ConvertTo-Json
     Invoke-RestMethod -Method Post -Uri "$UserUrl/me/$($Item.Path)" -Headers $Headers -Body $Body -ContentType "application/json"
-    Write-Host "Added $($Item.Ingredient) to $($Item.Path.Split('/')[0])" -ForegroundColor Gray
+    Write-Host "Added $($Item.Ingredients) to $($Item.Path.Split('/')[0])" -ForegroundColor Gray
 }
 
 # --- STEP F: Fetch Full Inventory ---
