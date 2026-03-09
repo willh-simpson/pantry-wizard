@@ -71,8 +71,8 @@ func main() {
 	userGroup := r.Group("/interactions")
 	userGroup.Use(validator.AuthWorker(validator.JWKS_URL))
 	{
-		r.POST("/:recipe_id", handler.Interact)
-		r.POST("/:recipe_id/cook", handler.CookRecipe)
+		userGroup.POST("/:recipe_id", handler.Interact)
+		userGroup.POST("/:recipe_id/cook", handler.CookRecipe)
 	}
 
 	log.Printf("interaction service starting on port %s...", cfg.Port)

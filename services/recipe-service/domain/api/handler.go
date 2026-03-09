@@ -85,8 +85,12 @@ func (h *RecipeHandler) ListRecipes(c *gin.Context) {
 func (h *RecipeHandler) GetRecipe(c *gin.Context) {
 	recipeID := c.Param("recipe_id")
 
+	log.Printf("GetRecipe triggered for id %s", recipeID)
+
 	recipe, err := database.GetRecipeByID(h.DB, c.Request.Context(), recipeID)
 	if err != nil {
+		log.Printf("recipe not found: %v", err)
+
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "recipe not found",
 			"error":   err.Error(),
@@ -219,7 +223,12 @@ func (h *RecipeHandler) ProcessRecipeCookedEvent(ctx context.Context, msg kafka.
 
 	log.Printf("UPDATE: recipe %s cooked by a user", event.RecipeID)
 
-	return database.IncrementTimesMadeGlobally(h.DB, ctx, event.RecipeID)
+	err := database.IncrementTimesMadeGlobally(h.DB, ctx, event.RecipeID)
+	if err != nil {
+		log.Printf("error incrementing score: %v", err)
+	}
+
+	return err
 }
 
 func calculateStars(ratio float64) int {
