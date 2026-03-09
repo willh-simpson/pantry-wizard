@@ -177,13 +177,43 @@ func (h *UserHandler) UpdatePreferences(c *gin.Context) {
 	})
 }
 
+func (h *UserHandler) GetShoppingListSuggestions(c *gin.Context) {
+	externalID := c.MustGet("user_external_id").(string)
+
+	userID, err := h.getInternalID(c.Request.Context(), externalID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "user not found in internal records",
+			"error":   err.Error(),
+		})
+	}
+
+	suggestions, err := database.GetShoppingListSuggestions(h.DB, c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "failed to get shopping list suggestions",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	if suggestions == nil {
+		suggestions = []model.ShoppingListSuggestion{} // return empty array instead of nil
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"shopping_list_suggestions": suggestions,
+	})
+}
+
 func (h *UserHandler) ProcessRecipeCookedEvent(ctx context.Context, msg kafka.Message) error {
 	var event events.RecipeCookedEvent
 	if err := json.Unmarshal(msg.Value, &event); err != nil {
 		return err
 	}
 
-	log.Printf("processing meal exeuction for user %s, recipe %s", event.ExternalID, event.RecipeID)
+	log.Printf("processing meal execution for user %s, recipe %s", event.ExternalID, event.RecipeID)
 
 	internalID, err := h.getInternalID(ctx, event.ExternalID)
 	if err != nil {
