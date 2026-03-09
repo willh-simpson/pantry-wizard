@@ -270,6 +270,36 @@ func RecordMealExecution(db *sql.DB, ctx context.Context, userID string, recipeI
 	return tx.Commit()
 }
 
+func GetShoppingListSuggestions(db *sql.DB, ctx context.Context, userID string) ([]model.ShoppingListSuggestion, error) {
+	query, args, err := psql.
+		Select("ingredient_name", "reason", "suggested_at").
+		From("shopping_list_suggestions").
+		Where("user_id = ?", userID).
+		OrderBy("suggested_at DESC").
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suggestions []model.ShoppingListSuggestion
+	for rows.Next() {
+		var s model.ShoppingListSuggestion
+		if err := rows.Scan(&s.IngredientName, &s.Reason, &s.SuggestedAt); err != nil {
+			return nil, err
+		}
+
+		suggestions = append(suggestions, s)
+	}
+
+	return suggestions, nil
+}
+
 func cleanStringValue(str string) string {
 	return strings.ToLower(strings.TrimSpace(str))
 }

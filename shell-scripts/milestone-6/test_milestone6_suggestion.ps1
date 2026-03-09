@@ -38,18 +38,14 @@ $RecipeUrl = "http://localhost:8083"
 $RecUrl = "http://localhost:8084"
 $UserUrl = "http://localhost:8085"
 
-$Email = "chef-$(Get-Random)@test.local"
+$Email = "chef-1517541474@test.local"
 $UserKey = "PantryWizard123!"
 $Ingredients = @("Chicken", "Garlic", "Onions")
 
 Write-Host "--- STARTING MILESTONE 3 INTEGRATION TEST ---" -ForegroundColor Magenta
 
-# 1. Identity: Register & Login
-Write-Host "[1/6] Registering and Logging in..." -ForegroundColor Cyan
-$RegBody = @{ email = $Email; password = $UserKey; display_name = "Master Chef" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "$IdentityUrl/auth/register" -Body $RegBody -ContentType "application/json"
-aws cognito-idp admin-confirm-sign-up --user-pool-id $COGNITO_USER_POOL_ID --username $Email --region $AWS_REGION
-
+# 1. Identity: Login
+Write-Host "[1/6] Logging in..." -ForegroundColor Cyan
 $LoginBody = @{ email = $Email; password = $UserKey } | ConvertTo-Json
 $LoginResponse = Invoke-RestMethod -Method Post -Uri "$IdentityUrl/auth/login" -Body $LoginBody -ContentType "application/json"
 $Headers = @{ Authorization = "Bearer $($LoginResponse.access_token)" }
@@ -114,15 +110,17 @@ $RecipeData = Wait-For-Data "Recipe Service (Global Stats)" {
 # D. Poll User Service: Check for Shopping Suggestions
 $Suggestions = Wait-For-Data "User Service (Shopping Suggestions)" {
     Invoke-RestMethod -Method Get -Uri "$UserUrl/me/suggestions" -Headers $Headers
-    # if ($data.suggestions.Count -gt 0) { return $data }
-    # return $null
+    if ($data.shopping_list_suggestions.Count -gt 0) { return $data }
+    return $null
 }
 
 # 7. Final Report
 Write-Host "--- [6/6] VERIFICATION COMPLETE ---" -ForegroundColor Magenta
 Write-Host "Rec Score:    $($ScoreData.score)"
 Write-Host "Global Cooks: $($RecipeData.times_made_globally)"
-Write-Host "suggestion: $($Suggestions)"
-# Write-Host "Smart Suggestions: $($Suggestions.suggestions.ingredient_name -join ', ')" -ForegroundColor Green
+Write-Host "Smart Suggestions ($($Suggestions.shopping_list_suggestions.Count)):" -ForegroundColor Green
+for ($i = 0; $i -lt $Suggestions.shopping_list_suggestions.Count; $i++) {
+    Write-Host "    > [$($Suggestions.shopping_list_suggestions[$i].suggested_at)] $($Suggestions.shopping_list_suggestions[$i].ingredient_name) - $($Suggestions.shopping_list_suggestions[$i].reason)" -ForegroundColor Green
+}
 
 Write-Host "--- MILESTONE 3 TEST COMPLETE ---" -ForegroundColor Magenta

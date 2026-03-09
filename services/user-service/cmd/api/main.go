@@ -74,6 +74,8 @@ func main() {
 
 		userGroup.GET("/profile", handler.GetProfile)
 		userGroup.PUT("/profile/preferences", handler.UpdatePreferences)
+
+		userGroup.GET("/suggestions", handler.GetShoppingListSuggestions)
 	}
 
 	log.Printf("user service starting on port %s...", cfg.Port)
