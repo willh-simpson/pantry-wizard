@@ -10,6 +10,7 @@ CREATE TABLE ingredients (
 CREATE TABLE recipes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
+    times_made_globally BIGINT DEFAULT 0,
     description TEXT,
     instructions TEXT NOT NULL,
     author_id UUID NOT NULL,

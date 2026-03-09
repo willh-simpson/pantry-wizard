@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/willh-simpson/pantry-wizard/libs/go/common/auth"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/client"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/config"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/api"
@@ -41,6 +43,9 @@ func main() {
 	}
 	defer db.Close()
 
+	retryProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
+	defer retryProducer.Close()
+
 	userClient := *client.NewUserClient(cfg.UserServiceURL)
 	handler := api.NewRecipeHandler(db, userClient)
 	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
@@ -53,11 +58,27 @@ func main() {
 	protected.Use(validator.AuthWorker(validator.JWKS_URL))
 	{
 		protected.GET("/search", handler.SearchRecipes)
-		protected.GET("", handler.ListRecipes)
-		protected.POST("", handler.CreateRecipe)
+		protected.GET("/", handler.ListRecipes)
+		protected.GET("/:recipe_id", handler.GetRecipe)
+		protected.POST("/", handler.CreateRecipe)
 	}
 
 	log.Printf("identity service starting on port %s...", cfg.Port)
+
+	go func() {
+		kafkaConsumer := kafka.NewConsumer(
+			[]string{cfg.KafkaBroker},
+			"recipe-service-stats-group",
+			"recipe-cook-interactions",
+			retryProducer,
+		)
+		defer kafkaConsumer.Close()
+
+		log.Println("recipe service listening for recipe stats...")
+
+		kafkaConsumer.Consume(context.Background(), handler.ProcessRecipeCookedEvent)
+	}()
+
 	if err := r.Run(cfg.Port); err != nil {
 		log.Fatalf("failed to start server: %v", err)
 	}

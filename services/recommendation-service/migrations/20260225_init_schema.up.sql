@@ -5,6 +5,7 @@ CREATE TABLE recipe_scores (
     like_count BIGINT DEFAULT 0,
     view_count BIGINT DEFAULT 0,
     save_count BIGINT DEFAULT 0,
+    cook_count BIGINT DEFAULT 0,
     total_score DOUBLE PRECISION DEFAULT 0.0,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

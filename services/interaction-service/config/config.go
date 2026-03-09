@@ -7,9 +7,11 @@ import (
 )
 
 type Config struct {
-	DB_DSN      string
-	Port        string
-	KafkaBroker string
+	DB_DSN        string
+	Port          string
+	KafkaBroker   string
+	CognitoPoolID string
+	AWSRegion     string
 }
 
 func LoadConfig() *Config {
@@ -39,9 +41,14 @@ func LoadConfig() *Config {
 		kafkaBroker = "localhost:9092"
 	}
 
+	poolID := os.Getenv("COGNITO_USER_POOL_ID")
+	awsRegion := os.Getenv("AWS_REGION")
+
 	return &Config{
-		DB_DSN:      u.String(),
-		Port:        ":8082",
-		KafkaBroker: kafkaBroker,
+		DB_DSN:        u.String(),
+		Port:          ":8082",
+		KafkaBroker:   kafkaBroker,
+		CognitoPoolID: poolID,
+		AWSRegion:     awsRegion,
 	}
 }

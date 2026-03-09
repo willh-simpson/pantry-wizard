@@ -57,6 +57,7 @@ func main() {
 	r := gin.Default()
 	r.GET("/health", handler.HealthCheck)
 	r.GET("/recommendations", handler.GetTopRecommendations)
+	r.GET("/scores/:recipe_id", handler.GetRecipeScore)
 
 	log.Printf("recommendation service starting on port %s...", cfg.Port)
 

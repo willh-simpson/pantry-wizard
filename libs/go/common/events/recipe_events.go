@@ -10,6 +10,13 @@ type RecipeLikedV1 struct {
 	Metadata  Metadata  `json:"metadata"`
 }
 
+type RecipeCookedEvent struct {
+	ExternalID  string    `json:"external_id"`
+	RecipeID    string    `json:"recipe_id"`
+	Ingredients []string  `json:"ingredients"`
+	CookedAt    time.Time `json:"cooked_at"`
+}
+
 type Metadata struct {
 	Source    string `json:"source"`
 	SessionID string `json:"session_id"`

@@ -21,9 +21,18 @@ type CreateRecipeRequest struct {
 }
 
 type RecipeResponse struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created_at"`
+	ID                string    `json:"id"`
+	Title             string    `json:"title"`
+	TimesMadeGlobally int64     `json:"times_made_globally"`
+	Description       string    `json:"description"`
+	Instructions      string    `json:"instructions"`
+	AuthorID          string    `json:"author_id"`
+	PrepTimeMinutes   string    `json:"prep_time_min"`
+	Calories          int32     `json:"calories"`
+	BudgetTier        int32     `json:"budget_tier"`
+	ImageURL          string    `json:"image_url"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 type SearchResult struct {

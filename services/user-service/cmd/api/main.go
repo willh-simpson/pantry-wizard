@@ -45,14 +45,6 @@ func main() {
 	retryProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
 	defer retryProducer.Close()
 
-	kafkaConsumer := kafka.NewConsumer(
-		[]string{cfg.KafkaBroker},
-		"user-service-group",
-		"user-events",
-		retryProducer,
-	)
-	defer kafkaConsumer.Close()
-
 	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
 	if validator == nil {
 		log.Printf("validator is nil")
@@ -87,9 +79,31 @@ func main() {
 	log.Printf("user service starting on port %s...", cfg.Port)
 
 	go func() {
-		log.Println("user service listening for events...")
+		kafkaConsumer := kafka.NewConsumer(
+			[]string{cfg.KafkaBroker},
+			"user-service-profile-group",
+			"user-events",
+			retryProducer,
+		)
+		defer kafkaConsumer.Close()
+
+		log.Println("listening for user events...")
 
 		kafkaConsumer.Consume(context.Background(), handler.ProcessUserEvent)
+	}()
+
+	go func() {
+		kafkaConsumer := kafka.NewConsumer(
+			[]string{cfg.KafkaBroker},
+			"user-service-execution-group",
+			"recipe-cook-interactions",
+			retryProducer,
+		)
+		defer kafkaConsumer.Close()
+
+		log.Println("listening for cooked recipe events...")
+
+		kafkaConsumer.Consume(context.Background(), handler.ProcessRecipeCookedEvent)
 	}()
 
 	if err := r.Run(cfg.Port); err != nil {

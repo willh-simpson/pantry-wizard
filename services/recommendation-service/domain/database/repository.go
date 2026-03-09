@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/Masterminds/squirrel"
 	"github.com/willh-simpson/pantry-wizard/services/recommendation-service/domain/model"
@@ -10,22 +11,24 @@ import (
 
 var psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
 
-func UpdateScore(ctx context.Context, db *sql.DB, recipeID, interactionType string) error {
+func UpdateScore(db *sql.DB, ctx context.Context, recipeID, interactionType string) error {
 	var weight float64
 	var countDelta int
 	var column string
 
 	switch interactionType {
 	case "like":
-		column, weight, countDelta = "like_count", 1.0, 1
+		column, weight, countDelta = "like_count", float64(model.LikeWeight), 1
 	case "unlike":
-		column, weight, countDelta = "like_count", -1.0, -1
+		column, weight, countDelta = "like_count", float64(-model.LikeWeight), -1
 	case "save":
-		column, weight, countDelta = "save_count", 3.0, 1
+		column, weight, countDelta = "save_count", float64(model.SaveWeight), 1
 	case "unsave":
-		column, weight, countDelta = "save_count", -3.0, 1
+		column, weight, countDelta = "save_count", float64(-model.SaveWeight), -1
+	case "cook":
+		column, weight, countDelta = "cook_count", float64(model.CookWeight), 1
 	case "view":
-		column, weight, countDelta = "view_count", 0.1, 1
+		column, weight, countDelta = "view_count", float64(model.ViewWeight), 1
 	default:
 		column, weight, countDelta = "view_count", 0.0, 0
 	}
@@ -50,7 +53,7 @@ func UpdateScore(ctx context.Context, db *sql.DB, recipeID, interactionType stri
 	return err
 }
 
-func GetTopRecipes(ctx context.Context, db *sql.DB, limit int) ([]model.RankedRecipe, error) {
+func GetTopRecipes(db *sql.DB, ctx context.Context, limit int) ([]model.RankedRecipe, error) {
 	query, args, err := psql.
 		Select("recipe_id", "total_score").
 		From("recipe_scores").
@@ -79,4 +82,25 @@ func GetTopRecipes(ctx context.Context, db *sql.DB, limit int) ([]model.RankedRe
 	}
 
 	return recipes, nil
+}
+
+func GetRecipeScore(db *sql.DB, ctx context.Context, recipeID string) (float64, error) {
+	query, args, err := psql.
+		Select("total_score").
+		From("recipe_scores").
+		Where("recipe_id = ?", recipeID).
+		ToSql()
+	if err != nil {
+		return 0.0, err
+	}
+
+	var score float64
+	err = db.
+		QueryRowContext(ctx, query, args...).
+		Scan(&score)
+	if err != nil {
+		return 0.0, fmt.Errorf("error getting score for recipe id %s: %w", recipeID, err)
+	}
+
+	return score, nil
 }

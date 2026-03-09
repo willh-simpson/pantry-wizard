@@ -85,7 +85,7 @@ func CreateFullRecipe(db *sql.DB, req model.CreateRecipeRequest) (string, error)
 
 func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]model.RecipeResponse, error) {
 	queryBuilder := psql.
-		Select("id", "title", "created_at").
+		Select("*").
 		From("recipes")
 
 	if title != "" {
@@ -123,7 +123,20 @@ func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]
 	for rows.Next() {
 		var r model.RecipeResponse
 
-		if err := rows.Scan(&r.ID, &r.Title, &r.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&r.ID,
+			&r.Title,
+			&r.TimesMadeGlobally,
+			&r.Description,
+			&r.Instructions,
+			&r.AuthorID,
+			&r.PrepTimeMinutes,
+			&r.Calories,
+			&r.BudgetTier,
+			&r.ImageURL,
+			&r.CreatedAt,
+			&r.UpdatedAt,
+		); err != nil {
 			return nil, err
 		}
 
@@ -215,6 +228,63 @@ func AdvancedShoppingListSearch(
 	available := append(shoppingList, wishlist...)
 
 	return executeAdvancedSearch(db, ctx, cleanList(available), cleanList(wishlist), strictness)
+}
+
+func IncrementTimesMadeGlobally(db *sql.DB, ctx context.Context, recipeID string) error {
+	query, args, err := psql.
+		Update("recipes").
+		Set("times_made_globally", squirrel.Expr("times_made_globally + 1")).
+		Set("updated_at", squirrel.Expr("NOW()")).
+		Where("id = ?", recipeID).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	result, err := db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("error incrementing recipe times made: %w", err)
+	}
+
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return fmt.Errorf("recipe not found: %s", recipeID)
+	}
+
+	return nil
+}
+
+func GetRecipeByID(db *sql.DB, ctx context.Context, recipeID string) (*model.RecipeResponse, error) {
+	query, args, err := psql.
+		Select("*").
+		From("recipes").
+		Where("recipe_id = ?", recipeID).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	var recipe model.RecipeResponse
+	err = db.
+		QueryRowContext(ctx, query, args...).
+		Scan(
+			&recipe.ID,
+			&recipe.Title,
+			&recipe.TimesMadeGlobally,
+			&recipe.Description,
+			&recipe.Instructions,
+			&recipe.AuthorID,
+			&recipe.PrepTimeMinutes,
+			&recipe.Calories,
+			&recipe.BudgetTier,
+			&recipe.ImageURL,
+			&recipe.CreatedAt,
+			&recipe.UpdatedAt,
+		)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching recipe: %w", err)
+	}
+
+	return &recipe, nil
 }
 
 // remove duplicate entries in order to make match score more accurate
