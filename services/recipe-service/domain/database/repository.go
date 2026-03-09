@@ -255,9 +255,22 @@ func IncrementTimesMadeGlobally(db *sql.DB, ctx context.Context, recipeID string
 
 func GetRecipeByID(db *sql.DB, ctx context.Context, recipeID string) (*model.RecipeResponse, error) {
 	query, args, err := psql.
-		Select("*").
+		Select(
+			"id",
+			"title",
+			"times_made_globally",
+			"COALESCE(description, '')",
+			"COALESCE(instructions, '')",
+			"author_id",
+			"prep_time_min",
+			"calories",
+			"budget_tier",
+			"COALESCE(image_url, '')",
+			"created_at",
+			"updated_at",
+		).
 		From("recipes").
-		Where("recipe_id = ?", recipeID).
+		Where("id = ?", recipeID).
 		ToSql()
 	if err != nil {
 		return nil, err

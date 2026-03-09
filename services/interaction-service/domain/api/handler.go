@@ -128,6 +128,8 @@ func (h *InteractionHandler) ProcessUserEvent(ctx context.Context, msg kafka.Mes
 	var event events.UserSyncedEvent
 	json.Unmarshal(msg.Value, &event)
 
+	log.Printf("syncing user with name '%s'", event.DisplayName)
+
 	err := database.UpsertUser(h.DB, ctx, event.ExternalID)
 
 	return err

@@ -49,7 +49,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.50 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
-	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260304231112-96288852c23a
+	github.com/willh-simpson/pantry-wizard/libs/go/common v0.0.0-20260309042317-a0129aafffbd
 	golang.org/x/arch v0.22.0 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/net v0.51.0 // indirect
