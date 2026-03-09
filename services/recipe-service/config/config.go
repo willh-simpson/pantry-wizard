@@ -10,6 +10,7 @@ type Config struct {
 	DB_DSN         string
 	UserServiceURL string
 	Port           string
+	KafkaBroker    string
 	CognitoAppID   string
 	CognitoPoolID  string
 	AWSRegion      string
@@ -45,6 +46,11 @@ func LoadConfig() *Config {
 	q.Set("sslmode", "disable")
 	u.RawQuery = q.Encode()
 
+	kafkaBroker := os.Getenv("KAFKA_BOOTSTRAP_SERVERS")
+	if kafkaBroker == "" {
+		kafkaBroker = "localhost:9092"
+	}
+
 	appID := os.Getenv("COGNITO_CLIENT_ID")
 	poolID := os.Getenv("COGNITO_USER_POOL_ID")
 	awsRegion := os.Getenv("AWS_REGION")
@@ -53,6 +59,7 @@ func LoadConfig() *Config {
 		DB_DSN:         u.String(),
 		UserServiceURL: userServiceURL,
 		Port:           ":8083",
+		KafkaBroker:    kafkaBroker,
 		CognitoAppID:   appID,
 		CognitoPoolID:  poolID,
 		AWSRegion:      awsRegion,

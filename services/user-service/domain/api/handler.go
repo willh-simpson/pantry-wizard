@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -176,10 +177,37 @@ func (h *UserHandler) UpdatePreferences(c *gin.Context) {
 	})
 }
 
+func (h *UserHandler) ProcessRecipeCookedEvent(ctx context.Context, msg kafka.Message) error {
+	var event events.RecipeCookedEvent
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		return err
+	}
+
+	log.Printf("processing meal exeuction for user %s, recipe %s", event.ExternalID, event.RecipeID)
+
+	internalID, err := h.getInternalID(ctx, event.ExternalID)
+	if err != nil {
+		return fmt.Errorf("user not found for event: %w", err)
+	}
+
+	err = database.RecordMealExecution(h.DB, ctx, internalID, event.RecipeID, event.Ingredients)
+	if err != nil {
+		log.Printf("error recording meal execution: %v", err)
+
+		return err
+	}
+
+	return nil
+}
+
+func (h *UserHandler) getInternalID(ctx context.Context, externalID string) (string, error) {
+	return database.GetInternalID(h.DB, ctx, externalID)
+}
+
 func (h *UserHandler) handleListUpdate(c *gin.Context, table string, isAddOperation bool) {
 	externalID := c.MustGet("user_external_id").(string)
 
-	internalID, err := database.GetInternalID(h.DB, c.Request.Context(), externalID)
+	internalID, err := h.getInternalID(c.Request.Context(), externalID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"message": "user not found in local records",

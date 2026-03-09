@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"log"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/events"
+	"github.com/willh-simpson/pantry-wizard/libs/go/common/kafka"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/client"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/admin/ingest"
 	"github.com/willh-simpson/pantry-wizard/services/recipe-service/domain/database"
@@ -77,6 +80,22 @@ func (h *RecipeHandler) ListRecipes(c *gin.Context) {
 	}
 
 	c.JSON(200, recipes)
+}
+
+func (h *RecipeHandler) GetRecipe(c *gin.Context) {
+	recipeID := c.Param("recipe_id")
+
+	recipe, err := database.GetRecipeByID(h.DB, c.Request.Context(), recipeID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "recipe not found",
+			"error":   err.Error(),
+		})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, recipe)
 }
 
 func (h *RecipeHandler) AdminIngest(c *gin.Context) {
@@ -190,6 +209,17 @@ func (h *RecipeHandler) SearchRecipes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+func (h *RecipeHandler) ProcessRecipeCookedEvent(ctx context.Context, msg kafka.Message) error {
+	var event events.RecipeCookedEvent
+	if err := json.Unmarshal(msg.Value, &event); err != nil {
+		return err
+	}
+
+	log.Printf("UPDATE: recipe %s cooked by a user", event.RecipeID)
+
+	return database.IncrementTimesMadeGlobally(h.DB, ctx, event.RecipeID)
 }
 
 func calculateStars(ratio float64) int {

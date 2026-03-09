@@ -208,6 +208,68 @@ func UpsertUser(db *sql.DB, ctx context.Context, externalID, email, displayName 
 	return tx.Commit()
 }
 
+func RecordMealExecution(db *sql.DB, ctx context.Context, userID string, recipeID string, ingredients []string) error {
+	recipeQuery, recipeArgs, err := psql.
+		Insert("consumed_recipes").
+		Columns("user_id", "recipe_id", "times_made").
+		Values(userID, recipeID, 1).
+		Suffix(`
+		ON CONFLICT (user_id, recipe_id)
+		DO UPDATE SET times_made = consumed_recipes.times_made + 1, last_made_at = NOW()
+	`).
+		ToSql()
+	if err != nil {
+		return err
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, recipeQuery, recipeArgs...); err != nil {
+		return fmt.Errorf("failed to update consumed recipes: %w", err)
+	}
+
+	for _, name := range ingredients {
+		ingredientQuery, ingredientArgs, err := psql.
+			Insert("consumed_ingredients").
+			Columns("user_id", "ingredient_name", "times_used").
+			Values(userID, name, 1).
+			Suffix(`
+			ON CONFLICT (user_id, ingredient_name)
+			DO UPDATE SET times_used = consumed_ingredients.times_used + 1
+		`).
+			ToSql()
+		if err != nil {
+			return err
+		}
+
+		if _, err := tx.ExecContext(ctx, ingredientQuery, ingredientArgs...); err != nil {
+			return fmt.Errorf("failed to update consumed ingredients: %w", err)
+		}
+
+		suggestQuery, suggestArgs, err := psql.
+			Insert("shopping_list_suggestions").
+			Columns("user_id", "ingredient_name", "reason").
+			Values(userID, name, "Used in recently cooked recipe").
+			Suffix(`
+			ON CONFLICT (user_id, ingredient_name) DO NOTHING
+		`).
+			ToSql()
+		if err != nil {
+			return err
+		}
+
+		if _, err := tx.ExecContext(ctx, suggestQuery, suggestArgs...); err != nil {
+			return fmt.Errorf("failed to update shopping list suggestions: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 func cleanStringValue(str string) string {
 	return strings.ToLower(strings.TrimSpace(str))
 }
