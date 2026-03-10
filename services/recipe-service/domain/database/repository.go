@@ -83,7 +83,7 @@ func CreateFullRecipe(db *sql.DB, req model.CreateRecipeRequest) (string, error)
 	return recipeID, nil
 }
 
-func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]model.RecipeResponse, error) {
+func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]model.Recipe, error) {
 	queryBuilder := psql.
 		Select("*").
 		From("recipes")
@@ -119,9 +119,9 @@ func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]
 	}
 	defer rows.Close()
 
-	var recipes []model.RecipeResponse
+	var recipes []model.Recipe
 	for rows.Next() {
-		var r model.RecipeResponse
+		var r model.Recipe
 
 		if err := rows.Scan(
 			&r.ID,
@@ -146,7 +146,7 @@ func SearchRecipes(db *sql.DB, title string, maxBudget int, maxPrepTime int) ([]
 	return recipes, nil
 }
 
-func IngredientFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) error {
+func RecipeFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) (string, error) {
 	title := meal["strMeal"].(string)
 	instructions := meal["strInstructions"].(string)
 	imageURL := meal["strMealThumb"].(string)
@@ -154,7 +154,7 @@ func IngredientFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) 
 
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tx.Rollback()
 
@@ -170,7 +170,7 @@ func IngredientFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) 
 			ToSql()
 
 		if err := tx.QueryRowContext(ctx, query, args...).Scan(&id); err != nil {
-			return fmt.Errorf("ingredient upsert failed: %w", err)
+			return "", fmt.Errorf("ingredient upsert failed: %w", err)
 		}
 
 		ingredientIDs[ingredient.Name] = id
@@ -186,7 +186,7 @@ func IngredientFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) 
 		ToSql()
 
 	if err := tx.QueryRowContext(ctx, recipeQuery, recipeArgs...).Scan(&recipeID); err != nil {
-		return fmt.Errorf("recipe insert failed: %w", err)
+		return "", fmt.Errorf("recipe insert failed: %w", err)
 	}
 
 	for _, ingredient := range ingredients {
@@ -197,11 +197,15 @@ func IngredientFromMealDB(db *sql.DB, ctx context.Context, meal ingest.MapMeal) 
 			ToSql()
 
 		if _, err := tx.ExecContext(ctx, linkQuery, linkArgs...); err != nil {
-			return fmt.Errorf("linked failed: %w", err)
+			return "", fmt.Errorf("linked failed: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return recipeID, nil
 }
 
 func AdvancedPantrySearch(
@@ -253,7 +257,7 @@ func IncrementTimesMadeGlobally(db *sql.DB, ctx context.Context, recipeID string
 	return nil
 }
 
-func GetRecipeByID(db *sql.DB, ctx context.Context, recipeID string) (*model.RecipeResponse, error) {
+func GetRecipeByID(db *sql.DB, ctx context.Context, recipeID string) (*model.Recipe, error) {
 	query, args, err := psql.
 		Select(
 			"id",
@@ -276,7 +280,7 @@ func GetRecipeByID(db *sql.DB, ctx context.Context, recipeID string) (*model.Rec
 		return nil, err
 	}
 
-	var recipe model.RecipeResponse
+	var recipe model.Recipe
 	err = db.
 		QueryRowContext(ctx, query, args...).
 		Scan(

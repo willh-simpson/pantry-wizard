@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+confluent-kafka
+sentence-transformers
+faiss-cpu
+httpx
+langchain
+langchain-core
+langchain-community
+langchain-ollama
+pydantic

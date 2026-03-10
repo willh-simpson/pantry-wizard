@@ -43,11 +43,14 @@ func main() {
 	}
 	defer db.Close()
 
+	kafkaProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
+	defer kafkaProducer.Close()
+
 	retryProducer := kafka.NewProducer([]string{cfg.KafkaBroker})
 	defer retryProducer.Close()
 
 	userClient := *client.NewUserClient(cfg.UserServiceURL)
-	handler := api.NewRecipeHandler(db, userClient)
+	handler := api.NewRecipeHandler(db, kafkaProducer, userClient)
 	validator := auth.NewTokenValidator(cfg.AWSRegion, cfg.CognitoPoolID)
 
 	r := gin.Default()

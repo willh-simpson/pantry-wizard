@@ -20,7 +20,7 @@ type CreateRecipeRequest struct {
 	Ingredients  []IngredientInput `json:"ingredients" binding:"required,dive"`
 }
 
-type RecipeResponse struct {
+type Recipe struct {
 	ID                string    `json:"id"`
 	Title             string    `json:"title"`
 	TimesMadeGlobally int64     `json:"times_made_globally"`
