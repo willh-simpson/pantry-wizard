@@ -1,5 +1,6 @@
 from typing import List
 
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_ollama import OllamaLLM
@@ -18,6 +19,13 @@ class MoodAgent:
     def __init__(self):
         self.llm = OllamaLLM(model="llama3")
         self.parser = PydanticOutputParser(pydantic_object=SearchQuery)
+        self.search_tool = DuckDuckGoSearchRun()
+
+    # this will execute only if insufficient matches are found in local db
+    def search_the_web(self, query: str):
+        print(f"searching the web for: {query}")
+
+        return self.search_tool.run(f"recipe for {query}")
 
     def process_mood(self, user_input: str) -> SearchQuery:
         prompt_text = """

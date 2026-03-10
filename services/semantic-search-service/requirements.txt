@@ -9,3 +9,5 @@ langchain-core
 langchain-community
 langchain-ollama
 pydantic
+duckduckgo-search
+ddgs
