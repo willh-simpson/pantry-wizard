@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"net/http"
@@ -19,16 +20,18 @@ import (
 )
 
 type RecipeHandler struct {
-	DB         *sql.DB
-	UserClient *client.UserClient
+	DB            *sql.DB
+	KafkaProducer kafka.Producer
+	UserClient    *client.UserClient
 }
 
 var MEAL_DB_URI = "https://www.themealdb.com/api/json/v1/1/search.php?s="
 
-func NewRecipeHandler(db *sql.DB, userClient client.UserClient) *RecipeHandler {
+func NewRecipeHandler(db *sql.DB, prod kafka.Producer, userClient client.UserClient) *RecipeHandler {
 	return &RecipeHandler{
-		DB:         db,
-		UserClient: &userClient,
+		DB:            db,
+		KafkaProducer: prod,
+		UserClient:    &userClient,
 	}
 }
 
@@ -51,7 +54,7 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 		return
 	}
 
-	id, err := database.CreateFullRecipe(h.DB, req)
+	recipeID, err := database.CreateFullRecipe(h.DB, req)
 	if err != nil {
 		c.JSON(500, gin.H{
 			"error": "failed to save recipe",
@@ -60,8 +63,22 @@ func (h *RecipeHandler) CreateRecipe(c *gin.Context) {
 		return
 	}
 
+	description := req.Description
+	if description == "" {
+		description = "No description provided"
+	}
+
+	h.publishRecipeEvent(
+		c,
+		recipeID,
+		req.Title,
+		description,
+		req.Instructions,
+		events.RecipeCreated,
+	)
+
 	c.JSON(201, gin.H{
-		"id":      id,
+		"id":      recipeID,
 		"message": "recipe created successfully",
 	})
 }
@@ -137,8 +154,18 @@ func (h *RecipeHandler) AdminIngest(c *gin.Context) {
 
 	count := 0
 	for _, meal := range data.Meals {
-		if err := database.IngredientFromMealDB(h.DB, c.Request.Context(), meal); err != nil {
+		recipeID, err := database.RecipeFromMealDB(h.DB, c.Request.Context(), meal)
+		if err != nil {
 			log.Printf("failed to ingest meal %v: %v", meal["strMeal"], err)
+		} else {
+			h.publishRecipeEvent(
+				c,
+				recipeID,
+				meal["strMeal"].(string),
+				"No description provided",
+				meal["strInstructions"].(string),
+				events.RecipeCreated,
+			)
 		}
 
 		count++
@@ -213,6 +240,29 @@ func (h *RecipeHandler) SearchRecipes(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, results)
+}
+
+func (h *RecipeHandler) publishRecipeEvent(c *gin.Context, recipeID, title, description, instructions string, eventType events.RecipeEventType) {
+	event := events.RecipeEvent{
+		ID:           recipeID,
+		Title:        title,
+		Description:  description,
+		Instructions: instructions,
+		EventType:    eventType,
+	}
+	payload, _ := json.Marshal(event)
+
+	err := h.KafkaProducer.Publish(c.Request.Context(), kafka.Message{
+		Topic:      "recipe-events",
+		Key:        []byte(recipeID),
+		Value:      payload,
+		RetryCount: 0,
+	})
+	if err != nil {
+		fmt.Printf("kafka publish error: %v", err)
+	} else {
+		log.Printf("published %s for recipe %s to topic \"recipe-events\"", eventType, recipeID)
+	}
 }
 
 func (h *RecipeHandler) ProcessRecipeCookedEvent(ctx context.Context, msg kafka.Message) error {
