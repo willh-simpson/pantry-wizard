@@ -157,16 +157,18 @@ func (h *RecipeHandler) AdminIngest(c *gin.Context) {
 		recipeID, err := database.RecipeFromMealDB(h.DB, c.Request.Context(), meal)
 		if err != nil {
 			log.Printf("failed to ingest meal %v: %v", meal["strMeal"], err)
-		} else {
-			h.publishRecipeEvent(
-				c,
-				recipeID,
-				meal["strMeal"].(string),
-				"No description provided",
-				meal["strInstructions"].(string),
-				events.RecipeCreated,
-			)
+
+			continue
 		}
+
+		h.publishRecipeEvent(
+			c,
+			recipeID,
+			meal["strMeal"].(string),
+			"No description provided",
+			meal["strInstructions"].(string),
+			events.RecipeCreated,
+		)
 
 		count++
 	}
