@@ -21,13 +21,24 @@ def ensure_topic_exists(bootstrap_servers, topic_name):
             print(f"topic {topic} check: {e}")
 
 
+def print_consumer_message(event):
+    # instruction field is very long. trim it to keep logs clean
+    instructions = event["instructions"]
+    trimmed_instructions = instructions[:10] + "..."
+
+    print(
+        "{'id': '%s', 'title': '%s', 'description': '%s', 'instructions':'%s'}"
+        % (event["id"], event["title"], event["description"], trimmed_instructions)
+    )
+
+
 def kafka_worker(bootstrap_servers, topic_name):
     ensure_topic_exists(bootstrap_servers, topic_name)
 
     config = {
         "bootstrap.servers": bootstrap_servers,
         "group.id": "semantic-search-group",
-        "auto.offset-reset": "earliest",
+        "auto.offset.reset": "earliest",
         "enable.auto.commit": True,
     }
 
@@ -47,13 +58,13 @@ def kafka_worker(bootstrap_servers, topic_name):
                 continue
 
             event = json.loads(msg.value().decode("utf-8"))
-            print(f"received message: {event}")
+            print_consumer_message(event)
 
             if event["event_type"] in ["RECIPE_CREATED", "RECIPE_UPDATED"]:
                 id = event["id"]
                 title = event["title"]
-                description = event["recipe_description"]
-                instructions = event["recipe_instructions"]
+                description = event["description"]
+                instructions = event["instructions"]
 
                 index_recipe(id, title, description, instructions)
     finally:

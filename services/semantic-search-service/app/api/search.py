@@ -30,7 +30,10 @@ def index_recipe(id, title, description, instructions):
     # this maps the given uuid to an incremental integer
     internal_id = len(id_map)
     index.add_with_ids(vector, np.array([internal_id]))
-    id_map[str(internal_id)] = id
+    id_map[str(internal_id)] = {
+        "id": id,
+        "title": title,
+    }
 
     faiss.write_index(index, index_file)
     with open(map_file, "w") as f:
@@ -47,9 +50,15 @@ def faiss_search(query: str, top_k: int = 5):
     # faiss int ids need to be converted back to uuids before returning response
     results = []
     for i, idx in enumerate(internal_ids[0]):
-        if str(idx) in id_map:
+        key = str(idx)
+        if key in id_map:
+            metadata = id_map[key]
             results.append(
-                {"recipe_id": id_map[str(idx)], "score": float(distances[0][i])}
+                {
+                    "recipe_id": metadata["id"],
+                    "title": metadata["title"],
+                    "score": float(distances[0][i]),
+                }
             )
 
     return query, results
