@@ -26,7 +26,7 @@ CREATE TABLE recipe_ingredients (
     recipe_id UUID REFERENCES recipes(id) ON DELETE CASCADE,
     ingredient_id UUID REFERENCES ingredients(id) ON DELETE RESTRICT,
     amount DECIMAL NOT NULL,
-    unit VARCHAR(20), -- 'grams', 'tbsp', etc
+    unit VARCHAR(50), -- 'grams', 'tbsp', etc
     PRIMARY KEY (recipe_id, ingredient_id)
 );
 

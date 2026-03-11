@@ -7,5 +7,5 @@ node_modules/
 # ollama llm model data. includes api keys and large metadata files not useful to repo
 ollama_data/
 
-# set up docker locally. not relevant for project implementation
-docker-setup-guide.txt
+# personal development tracking. not useful to repo
+plan/
