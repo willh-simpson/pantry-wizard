@@ -1,0 +1,131 @@
+### testing semantic-search-service ###
+
+endpoint -> http://semantic-search-service:8000/search?query=beef
+<no headers or request body>
+
+response body ->
+    {
+        "query": "beef",
+        "results": [
+            {
+                "recipe_id": "372113e8-ea6c-41d6-a394-fc47c4333327",
+                "title": "Beef Asado",
+                "score": 0.9861144423484802
+            },
+            {
+                "recipe_id": "951f44f1-8c47-4f43-be6b-a4381382a9d7",
+                "title": "Beef pho",
+                "score": 1.010708212852478
+            },
+            {
+                "recipe_id": "7939481a-55ab-4582-969f-76318008076b",
+                "title": "Beef Mechado",
+                "score": 1.0356438159942627
+            },
+            {
+                "recipe_id": "6d369798-ae0e-4f9c-abe5-5ac542ff0589",
+                "title": "Beef Wellington",
+                "score": 1.0360029935836792
+            },
+            {
+                "recipe_id": "dc0af3cf-a8d2-402f-9566-1f1b5c4b8b7f",
+                "title": "Beef Caldereta",
+                "score": 1.060955286026001
+            }
+        ]
+    }
+
+### testing ai-agent-service ###
+
+endpoint -> http://ai-agent-service:8006/ai/predict-mood
+request body ->
+    {
+        "message": "i want a cozy soup that's themed after autumn. i want to use butternut squash"
+    }
+
+response body ->
+    {
+        "analysis": {
+            "semantic_query": "cozy autumn-themed soup using butternut squash",
+            "tags": [
+                "butternut squash",
+                "autumn",
+                "soup",
+                "cozy"
+            ],
+            "max_prep_time": 60
+        },
+        "local_matches": [
+            {
+                "recipe_id": "241316df-d680-482e-9d55-c16d4bc4322e",
+                "title": "Thai green chicken soup",
+                "score": 1.1997480392456055
+            },
+            {
+                "recipe_id": "222f3821-aed2-4d8a-92ff-4a5a5d1daacb",
+                "title": "Beef Sunday Roast",
+                "score": 1.3816603422164917
+            },
+            {
+                "recipe_id": "76e037da-d0e9-420f-bf6f-eeff5db175a3",
+                "title": "Beef and Oyster pie",
+                "score": 1.3970634937286377
+            },
+            {
+                "recipe_id": "27beb550-579b-498b-abb7-30def74c0971",
+                "title": "Braised Beef Chilli",
+                "score": 1.4234955310821533
+            },
+            {
+                "recipe_id": "27136de3-8717-4741-9cb3-3cb26816f0e9",
+                "title": "Mini chilli beef pies",
+                "score": 1.4343397617340088
+            }
+        ],
+        "web_matches": [
+            {
+                "title": "Roasted Butternut Squash Soup",
+                "description": "This easy homemade roasted butternutsquash soup is so flavorful but only has 3 main ingredients! It's creamy and rich without being too heavy. It's the perfect cozy falls soup for chilly days.",
+                "source_url": "https://cookieandkate.com/roasted-butternut-squash-soup/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "other ingredients not specified"
+                ],
+                "prep_time_minutes": 60
+            },
+            {
+                "title": "Best Autumn Butternut Squash and Sweet Potato Soup Recipe",
+                "description": "Information not available",
+                "source_url": "https://www.pinterest.com/pin/best-autumn-soup--248049891968251303/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "sweet potato",
+                    "other ingredients not specified"
+                ],
+                "prep_time_minutes": 0
+            },
+            {
+                "title": "Trader Joe's Butternut Squash Soup Recipe (Five Ingredient)",
+                "description": "Information not available",
+                "source_url": "https://www.tiktok.com/discover/shred-happens-recipes-using-butternut-squash",
+                "key_ingredients": [
+                    "butternut squash",
+                    "other ingredients not specified"
+                ],
+                "prep_time_minutes": 0
+            },
+            {
+                "title": "Autumn Tortellini Soup with Sausage: Cozy Delicious Recipe",
+                "description": "Vibrant ingredients for Autumn Tortellini Soup with Sausage, including fresh vegetables like butternutsquash and spinach, Italian sausage, and cheese tortellini, neatly arranged on a wooden board.",
+                "source_url": "https://www.cookzya.com/autumn-tortellini-soup-with-sausage/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "spinach",
+                    "Italian sausage",
+                    "cheese tortellini",
+                    "other ingredients not specified"
+                ],
+                "prep_time_minutes": 0
+            }
+        ]
+    }

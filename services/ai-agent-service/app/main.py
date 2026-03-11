@@ -1,13 +1,11 @@
 import os
 
 import httpx
-from app.agents.mood_processor import MoodAgent
 from app.api.prompt_processor import search_with_prompt
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI(title="Pantry Wizard AI Agent")
-mood_agent = MoodAgent()
 
 SEMANTIC_SEARCH_URL = os.getenv("SEMANTIC_SEARCH_SERVICE_URL", "localhost:8000")
 print(f"connected to semantic-search-service via: {SEMANTIC_SEARCH_URL}")
