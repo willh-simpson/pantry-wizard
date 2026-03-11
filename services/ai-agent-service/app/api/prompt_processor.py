@@ -10,7 +10,7 @@ async def search_with_prompt(query: str, search_url: str):
     max_time = structured_query.max_prep_time
 
     async with httpx.AsyncClient() as client:
-        search_response = await client.post(
+        search_response = await client.get(
             search_url,
             params={"query": structured_query.semantic_query, "top_k": 5},
             timeout=10.0,
@@ -34,3 +34,7 @@ async def search_with_prompt(query: str, search_url: str):
         ]
 
     return structured_query, local_results, filtered_web_results
+
+
+async def deep_read_web_recipe(url: str):
+    return await mood_agent.scrape_recipe_and_summarize(url)

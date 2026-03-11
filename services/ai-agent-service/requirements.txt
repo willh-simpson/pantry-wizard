@@ -11,3 +11,5 @@ langchain-ollama
 pydantic
 duckduckgo-search
 ddgs
+beautifulsoup4
+playwright

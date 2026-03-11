@@ -1,7 +1,10 @@
+import asyncio
 import json
 import re
 from typing import List
 
+from langchain_community.document_loaders import AsyncHtmlLoader, PlaywrightURLLoader
+from langchain_community.document_transformers import BeautifulSoupTransformer
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -25,7 +28,7 @@ class WebRecipe(BaseModel):
     )
     key_ingredients: List[str] = Field(description="list of main ingredients mentioned")
     prep_time_minutes: int = Field(
-        description="total time in minutes as integer. use 0 if unknown"
+        description="total time in minutes as integer", default=0
     )
 
 
@@ -33,12 +36,38 @@ class WebRecipeResponse(BaseModel):
     recipes: List[WebRecipe] = Field(description="list of extracted recipes")
 
 
+class FullRecipe(BaseModel):
+    title: str = Field(description="recipe name")
+    ingredients: List[str] = Field(
+        description="list of recipe ingredients from provided recipe"
+    )
+    instructions: List[str] = Field(
+        description="list of step-by-step instructions on how to make recipe"
+    )
+    servings: str = Field(
+        description="amount of servings recipe makes", default="Not specified"
+    )
+    total_time_minutes: int = Field(
+        description="total time in minutes as integer", default=0
+    )
+
+
 class MoodAgent:
     def __init__(self):
         self.llm = OllamaLLM(model="llama3", temperature=0)
         self.query_parser = PydanticOutputParser(pydantic_object=SearchQuery)
         self.web_parser = PydanticOutputParser(pydantic_object=WebRecipeResponse)
+        self.deep_web_parser = PydanticOutputParser(pydantic_object=FullRecipe)
         self.search_tool = DuckDuckGoSearchResults()
+
+    def _get_empty_recipe(self, url: str) -> FullRecipe:
+        return FullRecipe(
+            title="Recipe extraction failed",
+            ingredients=["Could not extract ingredients"],
+            instructions=["Visit source URL to view full instructions"],
+            servings="Unknown",
+            total_time_minutes=0,
+        )
 
     # this will execute only if insufficient matches are found in local db
     def search_the_web(self, query: str):
@@ -141,3 +170,93 @@ class MoodAgent:
             print(f"WARNING: manual json parsing failed: {e}")
 
             return []
+
+    # AsyncHmtlLoader may fail if site uses javascript to write information after page loads, e.g., tikok, pinterest
+    # if docs[0].page_content is a bunch of <script> tags then use this
+    async def deep_read_javascript_results(self, url: str):
+        loader = PlaywrightURLLoader(
+            urls=[url], remove_selectors=["header", "footer", "ad"]
+        )
+        docs = await loader.aload()
+
+        return docs
+
+    async def scrape_recipe_and_summarize(self, url: str) -> FullRecipe:
+        print(f"performing deep-read at: {url}")
+
+        # bypass basic bot detection by defining 'human' headers
+        # more advanced bot detection on websites will stop me ¯\_(ツ)_/¯
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.37 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html.application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Referer": "https://www.google.com/",  # simulating request is coming from search engine. in theory this is already true given search_the_web()
+        }
+
+        try:
+            loader = AsyncHtmlLoader([url], header_template=headers)
+            docs = await asyncio.wait_for(asyncio.to_thread(loader.load), timeout=15)
+
+            if not docs or not docs[0].page_content:
+                raise ValueError("page loaded but content is empty")
+        except asyncio.TimeoutError:
+            print(f"ERROR: scraping '{url}' timed out")
+
+            return self._get_empty_recipe(url)
+        except Exception as e:
+            print(f"ERROR: scraping failed for '{url}': {e}")
+
+            pass
+
+        # less than 500 characters is suspiciously short or could just be a loading screen
+        if not docs or len(docs[0].page_content) < 500:
+            print(
+                f"DEBUG: content too thin or missing. attempting scrape with Playwright for '{url}'"
+            )
+
+            try:
+                docs = await self.deep_read_javascript_results(url)
+            except Exception as e:
+                print(f"ERROR: playwright scrape failed: {e}")
+
+                return self._get_empty_recipe(url)
+
+        bs_transformer = BeautifulSoupTransformer()
+        docs_transformed = bs_transformer.transform_documents(
+            docs, tags_to_extract=["p", "li", "div", "span"]
+        )
+
+        # taking first 4000 tokens to avoid hitting context limits
+        page_content = docs_transformed[0].page_content[:12000]
+        prompt_text = """
+            [INST]
+            You are a culinary assistant for the 'Pantry Wizard' app.
+            Your job is to extract the full recipe from the below webpage content into a clean JSON format.
+
+            "total_time_minutes" JSON field is the total time in minutes to make the recipe. 
+            i.e. if the recipe says "1 hour", this field should be set to 60.
+
+            Ignore all ads, related posts, and website navigation.
+            [/INST]
+
+            Webpage content:
+            {page_content}
+
+            {format_instructions}
+        """
+
+        prompt = PromptTemplate(
+            template=prompt_text,
+            input_variables=["page_content"],
+            partial_variables={
+                "format_instructions": self.deep_web_parser.get_format_instructions(),
+            },
+        )
+
+        full_prompt = prompt.format(page_content=page_content)
+        response = self.llm.invoke(full_prompt)
+
+        json_match = re.search(r"(\{.*\})", response, re.DOTALL)
+        clean_json = json_match.group(1) if json_match else response
+
+        return self.deep_web_parser.parse(clean_json)

@@ -17,7 +17,7 @@ def start_kafka_worker():
 threading.Thread(target=start_kafka_worker, daemon=True).start()
 
 
-@app.post("/search")
+@app.get("/search")
 async def search(query: str, top_k: int = 5):
     search_query, results = faiss_search(query, top_k)
 

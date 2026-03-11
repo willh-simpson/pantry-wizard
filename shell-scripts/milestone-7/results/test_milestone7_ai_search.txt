@@ -1,3 +1,5 @@
+this test was conducted using Postman and not by writing a shell script
+
 ### testing semantic-search-service ###
 
 endpoint -> http://semantic-search-service:8000/search?query=beef
@@ -129,3 +131,42 @@ response body ->
             }
         ]
     }
+
+### testing ai-agent-service deep-read ###
+
+endpoint -> http://ai-agent-service:8006/ai/extract-full-recipe
+request body ->
+    {
+        "url": "https://www.thepioneerwoman.com/food-cooking/recipes/a103161/simple-roasted-butternut-squash-soup/"
+    }
+
+response body ->
+    {
+        "title": "Simple Roasted Butternut Squash Soup",
+        "ingredients": [
+            "2 lb. cubed butternut squash",
+            "1 medium onion, halved and sliced into wedges",
+            "4 cloves garlic, peeled",
+            "1 tsp. sea salt",
+            "1/4 tsp. freshly ground black pepper",
+            "2 Tbsp. avocado oil, or another heat-safe oil",
+            "2 cups chicken broth or more, as needed",
+            "1 can (about 13 1/2 oz. size) coconut milk, or 1 c. heavy cream",
+            "Diced apple and crumbled, cooked bacon (optional)"
+        ],
+        "instructions": [
+            "Preheat oven to 425ºF.",
+            "Put squash cubes, onion, and garlic cloves on a large rimmed baking sheet.",
+            "Sprinkle with salt, pepper and drizzle oil over top.",
+            "Use your hands to toss everything around so it's evenly coated.",
+            "Roast for 35 to 40 minutes on a lower oven rack, tossing things around with a spatula a couple of times during cooking.",
+            "Transfer roasted items to a medium to large soup pot.",
+            "Add chicken broth and heat to a simmer.",
+            "Let it simmer for about 5 minutes and then blend it with an immersion blender (or in batches with a countertop blender) until smooth.",
+            "Stir in the coconut milk or cream.",
+            "Add a little more salt, if needed, before serving.",
+            "Top with diced apple and crumbled, cooked bacon, if desired."
+        ],
+        "servings": "6 serving(s)",
+        "total_time_minutes": 55
+}
