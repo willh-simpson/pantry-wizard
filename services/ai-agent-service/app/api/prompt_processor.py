@@ -1,8 +1,10 @@
 import httpx
 from app.agents.mood_agent import MoodAgent
+from app.services.pantry_provider import PantryProvider
 from app.types.faiss_scores import STRONG_SCORE_THRESHOLD
 
 mood_agent = MoodAgent()
+pantry_provider = PantryProvider()
 
 
 async def search_with_prompt(query: str, search_url: str):
@@ -33,8 +35,25 @@ async def search_with_prompt(query: str, search_url: str):
             if r.prep_time_minutes <= max_time or r.prep_time_minutes == 0
         ]
 
+        if filtered_web_results:
+            user_pantry = pantry_provider.get_inventory()
+
+            missing_counts = await mood_agent.soft_analyze_pantry_gap(
+                filtered_web_results, user_pantry
+            )
+
+            for i, recipe in enumerate(filtered_web_results):
+                recipe.missing_ingredients_count = missing_counts[i]
+
     return structured_query, local_results, filtered_web_results
 
 
 async def deep_read_web_recipe(url: str):
-    return await mood_agent.scrape_recipe_and_summarize(url)
+    full_recipe = await mood_agent.scrape_recipe_and_summarize(url)
+
+    user_pantry = pantry_provider.get_inventory()
+    gap_report = await mood_agent.hard_analyze_pantry_gap(
+        full_recipe.ingredients, user_pantry
+    )
+
+    return {"recipe": full_recipe, "pantry_report": gap_report}
