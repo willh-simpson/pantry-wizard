@@ -137,11 +137,20 @@ services:
     ports:
       - "${AI_AGENT_SERVICE_PORT}:8006"
     environment:
+      - AI_AGENT_DB_USER=${AI_AGENT_DB_USER}
+      - AI_AGENT_DB_PASSWORD=${AI_AGENT_DB_PASSWORD}
+      - AI_AGENT_DB_PORT=5432
+      - AI_AGENT_DB_HOST=ai-agent-db
       - SEMANTIC_SEARCH_SERVICE_URL=http://${SEMANTIC_SEARCH_SERVICE_HOST}:${SEMANTIC_SEARCH_SERVICE_PORT}
+      - RECIPE_SERVICE_URL=http://${RECIPE_SERVICE_HOST}:${RECIPE_SERVICE_PORT}
       - OLLAMA_HOST=${OLLAMA_HOST}:${OLLAMA_PORT}
     depends_on:
-      - semantic-search-service
-      - ollama
+      semantic-search-service:
+        condition: service_started
+      ollama:
+        condition: service_started
+      ai-agent-db:
+        condition: service_healthy
     networks:
       - pantry-network
 
@@ -231,6 +240,23 @@ services:
           "CMD-SHELL",
           "pg_isready -U ${RECOMMENDATION_DB_USER} -d recommendation_db",
         ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ai-agent-db:
+    image: postgres:15-alpine
+    container_name: ai-agent-db
+    environment:
+      POSTGRES_DB: ai_agent_db
+      POSTGRES_USER: ${AI_AGENT_DB_USER}
+      POSTGRES_PASSWORD: ${AI_AGENT_DB_PASSWORD}
+    ports:
+      - "${AI_AGENT_DB_PORT}:5432"
+    networks:
+      - pantry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_AGENT_DB_USER} -d ai_agent_db"]
       interval: 5s
       timeout: 5s
       retries: 5
