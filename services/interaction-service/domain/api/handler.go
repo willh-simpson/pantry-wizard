@@ -149,7 +149,7 @@ func (h *InteractionHandler) publishInteraction(c *gin.Context, recipeID, extern
 	payload, _ := json.Marshal(event)
 
 	err := h.Producer.Publish(c.Request.Context(), kafka.Message{
-		Topic:      "recipe-interactions",
+		Topic:      "interactions.recipes",
 		Key:        []byte(recipeID),
 		Value:      payload,
 		RetryCount: 0,
@@ -158,7 +158,7 @@ func (h *InteractionHandler) publishInteraction(c *gin.Context, recipeID, extern
 	if err != nil {
 		fmt.Printf("kafka publish error: %v", err)
 	} else {
-		log.Printf("published %s to topic \"recipe-interactions\"", action)
+		log.Printf("published %s to topic \"interactions.recipe\"", action)
 	}
 }
 
@@ -173,7 +173,7 @@ func (h *InteractionHandler) publishCookEvent(c *gin.Context, externalID, recipe
 	payload, _ := json.Marshal(event)
 
 	h.Producer.Publish(c.Request.Context(), kafka.Message{
-		Topic: "recipe-cook-interactions",
+		Topic: "interactions.recipes.cooked",
 		Key:   []byte(externalID),
 		Value: payload,
 	})

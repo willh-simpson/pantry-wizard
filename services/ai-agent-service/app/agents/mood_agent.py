@@ -20,6 +20,36 @@ class SearchQuery(BaseModel):
     )
 
 
+class IngredientMatch(BaseModel):
+    ingredient: str = Field(description="original ingredient name from the recipe")
+    status: str = Field(description="one of: 'HAVE', 'MISSING', or 'SUBSTITUTE'")
+    pantry_item: str = Field(
+        description="the matching item in the user's pantry, or 'None'", default="None"
+    )
+    note: str = Field(
+        description="reasoning for substitution or quantity notes", default=""
+    )
+
+
+class SoftPantryReport(BaseModel):
+    missing_counts: List[int] = Field(
+        description="the number of missing ingredients for each recipe in order"
+    )
+
+
+class PantryGapReport(BaseModel):
+    matches: List[IngredientMatch] = Field(
+        description="list of ingredients in recipe and their ingredient match report"
+    )
+    missing_count: int = Field(
+        description="amount of ingredients in recipe not in user's pantry (substitutes do not count)"
+    )
+    can_make_now: bool = Field(
+        description="True if 0 missing ingredients (substitutes count as having)",
+        default=False,
+    )
+
+
 class WebRecipe(BaseModel):
     title: str = Field(description="recipe name")
     description: str = Field(description="brief recipe summary")
@@ -27,6 +57,10 @@ class WebRecipe(BaseModel):
         description='link to full recipe if available, otherwise "search snippet"'
     )
     key_ingredients: List[str] = Field(description="list of main ingredients mentioned")
+    missing_ingredients_count: int = Field(
+        description="amount of key ingredients from search result not in user's pantry",
+        default=0,
+    )
     prep_time_minutes: int = Field(
         description="total time in minutes as integer", default=0
     )
@@ -58,6 +92,10 @@ class MoodAgent:
         self.query_parser = PydanticOutputParser(pydantic_object=SearchQuery)
         self.web_parser = PydanticOutputParser(pydantic_object=WebRecipeResponse)
         self.deep_web_parser = PydanticOutputParser(pydantic_object=FullRecipe)
+        self.pantry_gap_parser = PydanticOutputParser(pydantic_object=PantryGapReport)
+        self.soft_pantry_gap_parser = PydanticOutputParser(
+            pydantic_object=SoftPantryReport
+        )
         self.search_tool = DuckDuckGoSearchResults()
 
     def _get_empty_recipe(self, url: str) -> FullRecipe:
@@ -260,3 +298,104 @@ class MoodAgent:
         clean_json = json_match.group(1) if json_match else response
 
         return self.deep_web_parser.parse(clean_json)
+
+    async def soft_analyze_pantry_gap(
+        self, recipes: List[WebRecipe], user_pantry: List[int]
+    ):
+        if not recipes:
+            return []
+
+        recipes_str = "\n".join(
+            [
+                f"{i + 1}. {r.title}: {', '.join(r.key_ingredients)}"
+                for i, r in enumerate(recipes)
+            ]
+        )
+
+        prompt_text = """
+            [INST]
+            Compare the key ingredients of the provided recipes against the User pantry.
+            Return only the number of MISSING ingredients for each recipe.
+
+            RULES:
+            - If the user pantry has the ingredient or a valid substitute, it is not missing.
+            - A valid substitute is a common, flavor-appropriate replacement that will not affect the recipe (e.g., 'onion' for 'shallot').
+            - Only return the interger count of missing ingredients per recipe.
+            [/INST]
+
+            User pantry: {user_pantry}
+
+            Recipes: {recipes}
+
+            {format_instructions}
+        """
+
+        prompt = PromptTemplate(
+            template=prompt_text,
+            input_variables=["user_pantry", "recipes"],
+            partial_variables={
+                "format_instructions": self.soft_pantry_gap_parser.get_format_instructions()
+            },
+        )
+
+        full_prompt = prompt.format(
+            user_pantry=", ".join(user_pantry), recipes=recipes_str
+        )
+
+        try:
+            response = self.llm.invoke(full_prompt)
+
+            json_match = re.search(r"(\{.*\})", response, re.DOTALL)
+            result = self.soft_pantry_gap_parser.parse(
+                json_match.group(1) if json_match else response
+            )
+
+            if len(result.missing_counts) != len(recipes):
+                return [0] * len(recipes)
+
+            return result.missing_counts
+        except Exception as e:
+            print(f"soft pantry check failed: {e}")
+
+            return [0] * len(recipes)
+
+    async def hard_analyze_pantry_gap(
+        self, recipe_ingredients: List[str], user_pantry: List[str]
+    ) -> PantryGapReport:
+        prompt_text = """
+            [INST]
+            You are an expert chef and inventory manager.
+            Compare the "Recipe ingredients" against the "User pantry".
+
+            LOGIC:
+            - MATCH: if the user pantry has the item (e.g., 'olive oil' matches '1 tbsp extra virgin olive oil').
+            - SUBSTITUTE: if the pantry item is a common, flavor-appropriate replacement (e.g., 'onion' for 'shallot').
+            - MISSING: if there is no reasonable match.
+            [/INST]
+
+            User pantry: {user_pantry}
+            Recipe ingredients: {recipe_ingredients}
+
+            {format_instructions}
+        """
+
+        prompt = PromptTemplate(
+            template=prompt_text,
+            input_variables=["user_pantry", "recipe_ingredients"],
+            partial_variables={
+                "format_instructions": self.pantry_gap_parser.get_format_instructions()
+            },
+        )
+
+        full_prompt = prompt.format(
+            user_pantry=", ".join(user_pantry),
+            recipe_ingredients=", ".join(recipe_ingredients),
+        )
+
+        print("DEBUG: analyzing pantry gap...")
+        response = self.llm.invoke(full_prompt)
+
+        json_match = re.search(r"(\{.*\})", response, re.DOTALL)
+        clean_json = json_match.group(1) if json_match else response
+
+        return self.pantry_gap_parser.parse(clean_json)

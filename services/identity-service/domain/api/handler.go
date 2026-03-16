@@ -174,7 +174,7 @@ func (h *IdentityHandler) publishUserEvent(c *gin.Context, user *model.User, act
 	payload, _ := json.Marshal(event)
 
 	err := h.KafkaProducer.Publish(c.Request.Context(), kafka.Message{
-		Topic:      "user-events",
+		Topic:      "events.user",
 		Key:        []byte(user.ExternalID),
 		Value:      payload,
 		RetryCount: 0,
@@ -182,6 +182,6 @@ func (h *IdentityHandler) publishUserEvent(c *gin.Context, user *model.User, act
 	if err != nil {
 		fmt.Printf("kafka publish error: %v", err)
 	} else {
-		fmt.Printf("published user action '%s' to topic \"user-events\"", action)
+		fmt.Printf("published user action '%s' to topic \"events.user\"", action)
 	}
 }

@@ -1,0 +1,174 @@
+### ai-agent-service/ai/predict-mood ###
+
+request body ->
+    {
+        "message": "i want a cozy soup that's themed after autumn. i want to use butternut squash"
+    }
+
+response body ->
+    {
+        "analysis": {
+            "semantic_query": "cozy autumn-themed soup using butternut squash",
+            "tags": [
+                "butternut squash",
+                "autumn",
+                "soup",
+                "cozy"
+            ],
+            "max_prep_time": 60
+        },
+        "local_matches": [
+            {
+                "recipe_id": "6283854c-b5fd-4831-b2e0-d29f3c8eaedf",
+                "title": "Thai green chicken soup",
+                "score": 1.1997480392456055
+            },
+            {
+                "recipe_id": "233d202e-f124-4fa7-ba42-e685b70151d0",
+                "title": "Beef Sunday Roast",
+                "score": 1.3816603422164917
+            },
+            {
+                "recipe_id": "31c636d4-4c6e-4f1a-850a-e03c57f4d59b",
+                "title": "Beef and Oyster pie",
+                "score": 1.3970634937286377
+            },
+            {
+                "recipe_id": "966b5609-3583-43ce-a0d5-c25a8453c34f",
+                "title": "Braised Beef Chilli",
+                "score": 1.4234955310821533
+            },
+            {
+                "recipe_id": "6a38c5fc-1d5c-4fcc-9916-59ca1db9541d",
+                "title": "Mini chilli beef pies",
+                "score": 1.4343397617340088
+            }
+        ],
+        "web_matches": [
+            {
+                "title": "Butternut Squash Soup – receipster",
+                "description": "Information not available",
+                "source_url": "https://www.receipster.com/butternut-squash-soup/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "Sausage",
+                    "Thyme",
+                    "Sage",
+                    "pumpkin"
+                ],
+                "missing_ingredients_count": 2,
+                "prep_time_minutes": 60
+            },
+            {
+                "title": "Butternut Squash Soup – the kitchen bachelor",
+                "description": "Information not available",
+                "source_url": "https://thekitchenbachelor.com/butternut-squash-soup/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "apples",
+                    "nutmeg"
+                ],
+                "missing_ingredients_count": 3,
+                "prep_time_minutes": 60
+            },
+            {
+                "title": "Butternut Squash Soup –",
+                "description": "Information not available",
+                "source_url": "https://eatmovelivehappy.com/recipe/butternut-squash-soup/",
+                "key_ingredients": [
+                    "butternut squash",
+                    "apples",
+                    "nutmeg"
+                ],
+                "missing_ingredients_count": 3,
+                "prep_time_minutes": 60
+            }
+        ]
+    }
+
+### ai-agent-service/ai/extract-full-recipe ###
+
+request body ->
+    {
+        "url": "https://www.receipster.com/butternut-squash-soup/"
+    }
+
+response body ->
+    {
+        "recipe": {
+            "title": "Butternut Squash Soup",
+            "ingredients": [
+                "1 medium butternut squash – peeled, seeded, and cubed",
+                "1 tablespoon butter",
+                "1 medium onion – chopped",
+                "2 cloves garlic – minced",
+                "4 cups chicken broth",
+                "1/2 teaspoon salt",
+                "1/4 teaspoon ground black pepper",
+                "1/2 cup heavy cream"
+            ],
+            "instructions": [
+                "Melt butter in a large pot over medium heat. Add chopped onion and garlic; cook until tender.",
+                "Add cubed butternut squash to the pot and stir to combine.",
+                "Pour in chicken broth, bring to a boil, then reduce heat and simmer until squash is tender, about 20 minutes.",
+                "Use an immersion blender to puree the soup until smooth, or carefully transfer to a blender in batches.",
+                "Stir in heavy cream, salt, and pepper. Heat through but do not boil."
+            ],
+            "servings": "6",
+            "total_time_minutes": 45
+        },
+        "pantry_report": {
+            "matches": [
+                {
+                    "ingredient": "1 medium butternut squash – peeled, seeded, and cubed",
+                    "status": "HAVE",
+                    "pantry_item": "butternut squash",
+                    "note": ""
+                },
+                {
+                    "ingredient": "1 tablespoon butter",
+                    "status": "MISSING",
+                    "pantry_item": "None",
+                    "note": ""
+                },
+                {
+                    "ingredient": "1 medium onion – chopped",
+                    "status": "HAVE",
+                    "pantry_item": "onion",
+                    "note": ""
+                },
+                {
+                    "ingredient": "2 cloves garlic – minced",
+                    "status": "HAVE",
+                    "pantry_item": "garlic",
+                    "note": ""
+                },
+                {
+                    "ingredient": "4 cups chicken broth",
+                    "status": "MISSING",
+                    "pantry_item": "None",
+                    "note": ""
+                },
+                {
+                    "ingredient": "1/2 teaspoon salt",
+                    "status": "HAVE",
+                    "pantry_item": "salt",
+                    "note": ""
+                },
+                {
+                    "ingredient": "1/4 teaspoon ground black pepper",
+                    "status": "HAVE",
+                    "pantry_item": "black pepper",
+                    "note": ""
+                },
+                {
+                    "ingredient": "1/2 cup heavy cream",
+                    "status": "MISSING",
+                    "pantry_item": "None",
+                    "note": ""
+                }
+            ],
+            "missing_count": 3,
+            "can_make_now": false
+        }
+    }

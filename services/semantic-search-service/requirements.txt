@@ -13,3 +13,5 @@ duckduckgo-search
 ddgs
 beautifulsoup4
 playwright
+sqlalchemy
+asyncpg

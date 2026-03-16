@@ -255,7 +255,7 @@ func (h *RecipeHandler) publishRecipeEvent(c *gin.Context, recipeID, title, desc
 	payload, _ := json.Marshal(event)
 
 	err := h.KafkaProducer.Publish(c.Request.Context(), kafka.Message{
-		Topic:      "recipe-events",
+		Topic:      "events.recipe",
 		Key:        []byte(recipeID),
 		Value:      payload,
 		RetryCount: 0,
@@ -263,7 +263,7 @@ func (h *RecipeHandler) publishRecipeEvent(c *gin.Context, recipeID, title, desc
 	if err != nil {
 		fmt.Printf("kafka publish error: %v", err)
 	} else {
-		log.Printf("published %s for recipe %s to topic \"recipe-events\"", eventType, recipeID)
+		log.Printf("published %s for recipe %s to topic \"events.recipe\"", eventType, recipeID)
 	}
 }
 

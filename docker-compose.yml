@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: identity-service
     ports:
-      - "${IDENTITY_SERVICE_PORT}:8081"
+      - "${IDENTITY_SERVICE_PORT}:8086"
     environment:
       - IDENTITY_DB_USER=${IDENTITY_DB_USER}
       - IDENTITY_DB_PASSWORD=${IDENTITY_DB_PASSWORD}
@@ -137,11 +137,42 @@ services:
     ports:
       - "${AI_AGENT_SERVICE_PORT}:8006"
     environment:
+      - AI_AGENT_DB_USER=${AI_AGENT_DB_USER}
+      - AI_AGENT_DB_PASSWORD=${AI_AGENT_DB_PASSWORD}
+      - AI_AGENT_DB_PORT=5432
+      - AI_AGENT_DB_HOST=ai-agent-db
       - SEMANTIC_SEARCH_SERVICE_URL=http://${SEMANTIC_SEARCH_SERVICE_HOST}:${SEMANTIC_SEARCH_SERVICE_PORT}
+      - RECIPE_SERVICE_URL=http://${RECIPE_SERVICE_HOST}:${RECIPE_SERVICE_PORT}
       - OLLAMA_HOST=${OLLAMA_HOST}:${OLLAMA_PORT}
     depends_on:
-      - semantic-search-service
-      - ollama
+      semantic-search-service:
+        condition: service_started
+      ollama:
+        condition: service_started
+      ai-agent-db:
+        condition: service_healthy
+    networks:
+      - pantry-network
+
+  feedback-pipeline:
+    image: pantry-pipeline-builder:latest
+    container_name: feedback-pipeline
+    build:
+      context: ./services/feedback-pipeline
+      dockerfile: Dockerfile
+    depends_on:
+      flink-jobmanager:
+        condition: service_started
+      kafka-flink:
+        condition: service_completed_successfully
+    environment:
+      - KAFKA_BROKERS=${KAFKA_BOOTSTRAP_SERVERS}
+    command: >
+      flink run
+      -m flink-jobmanager:${FLINK_PORT}
+      -c com.pantry.InteractionCleaner
+      /opt/flink/usrlib/app.jar
+      --kafka.brokers ${KAFKA_BOOTSTRAP_SERVERS}
     networks:
       - pantry-network
 
@@ -235,6 +266,23 @@ services:
       timeout: 5s
       retries: 5
 
+  ai-agent-db:
+    image: postgres:15-alpine
+    container_name: ai-agent-db
+    environment:
+      POSTGRES_DB: ai_agent_db
+      POSTGRES_USER: ${AI_AGENT_DB_USER}
+      POSTGRES_PASSWORD: ${AI_AGENT_DB_PASSWORD}
+    ports:
+      - "${AI_AGENT_DB_PORT}:5432"
+    networks:
+      - pantry-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AI_AGENT_DB_USER} -d ai_agent_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
     environment:
@@ -268,6 +316,25 @@ services:
     networks:
       - pantry-network
 
+  kafka-flink:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: kafka-flink
+    depends_on:
+      - kafka
+    entrypoint: ["sh", "-c"]
+    command: |
+      "
+      cub kafka-ready -b ${KAFKA_BOOTSTRAP_SERVERS} 1 30
+
+      kafka-topics --create --if-not-exists --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS} --partitions 3 --replication-factor 1 --topic interactions.pantry.raw
+      kafka-topics --create --if-not-exists --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS} --partitions 3 --replication-factor 1 --topic interactions.pantry.cleaned
+      kafka-topics --create --if-not-exists --bootstrap-server ${KAFKA_BOOTSTRAP_SERVERS} --partitions 3 --replication-factor 1 --topic interactions.pantry.errors
+
+      echo 'topics created successfully'
+      "
+    networks:
+      - pantry-network
+
   ollama:
     image: ollama/ollama:latest
     container_name: ollama
@@ -278,6 +345,69 @@ services:
     networks:
       - pantry-network
 
+  flink-jobmanager:
+    image: flink:1.18-scala_2.12
+    container_name: jobmanager
+    volumes:
+      - flink-checkpoints:/opt/flink/checkpoints
+    ports:
+      - "${FLINK_PORT}:8090"
+      - "${METRICS_FLINK_JOBMANAGER_PORT}:${METRICS_PORT}"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        rest.bind-address: 0.0.0.0
+        rest.port: ${FLINK_PORT}
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: ${METRICS_PORT}
+    command: jobmanager
+    networks:
+      - pantry-network
+
+  flink-taskmanager:
+    image: flink:1.18-scala_2.12
+    container_name: taskmanager
+    volumes:
+      - flink-checkpoints:/opt/flink/checkpoints
+    depends_on:
+      - flink-jobmanager
+    ports:
+      - "${METRICS_FLINK_TASKMANAGER_PORT}:${METRICS_PORT}"
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+        metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+        metrics.reporter.prom.port: ${METRICS_PORT}
+    command: taskmanager
+    networks:
+      - pantry-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    networks:
+      - pantry-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - pantry-network
+
 networks:
   pantry-network:
     driver: bridge
+
+volumes:
+  flink-checkpoints:

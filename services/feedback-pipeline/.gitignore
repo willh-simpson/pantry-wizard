@@ -1,0 +1,5 @@
+# intellij project structure folders or compiled folders
+.bsp
+.idea/
+project/project/target/
+target/
