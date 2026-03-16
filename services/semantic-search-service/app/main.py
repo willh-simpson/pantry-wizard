@@ -11,7 +11,7 @@ app = FastAPI()
 def start_kafka_worker():
     kafka_bootstrap_servers = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 
-    kafka_worker(kafka_bootstrap_servers, "recipe-events")
+    kafka_worker(kafka_bootstrap_servers, "events.recipe")
 
 
 threading.Thread(target=start_kafka_worker, daemon=True).start()

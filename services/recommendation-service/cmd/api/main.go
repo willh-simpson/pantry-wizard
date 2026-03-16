@@ -47,7 +47,7 @@ func main() {
 	consumer := kafka.NewConsumer(
 		[]string{cfg.KafkaBroker},
 		"recommendation-service-group",
-		"recipe-interactions",
+		"interactions.recipes",
 		retryProducer,
 	)
 	defer consumer.Close()
