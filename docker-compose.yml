@@ -370,6 +370,7 @@ services:
     container_name: taskmanager
     volumes:
       - flink-checkpoints:/opt/flink/checkpoints
+      - ./pantry-metadata:/opt/pantry/metadata
     depends_on:
       - flink-jobmanager
     ports:
@@ -384,6 +385,10 @@ services:
     command: taskmanager
     networks:
       - pantry-network
+
+  retrain-worker:
+    volumes:
+      - ./pantry-metadata:/opt/pantry/metadata
 
   prometheus:
     image: prom/prometheus:latest
