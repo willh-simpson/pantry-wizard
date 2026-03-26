@@ -41,7 +41,7 @@ object RepositoryModule {
     @Singleton
     fun providePantryApi(@Named("AuthOkHttpClient") okHttpClient: OkHttpClient): PantryApi {
         return Retrofit.Builder()
-            .baseUrl("http://your-go-backend:8080/") // Your Go Service URL
+            .baseUrl("http://localhost:8080/")
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
