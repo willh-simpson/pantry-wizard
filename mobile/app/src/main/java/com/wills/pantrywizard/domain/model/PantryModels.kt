@@ -5,3 +5,9 @@ data class PantryItem(
     val name: String,
     val displayQuantity: String
 )
+
+data class IngredientMatch(
+    val rawText: String,
+    val isAvailable: Boolean,
+    val matchedPantryItem: String? = null
+)
